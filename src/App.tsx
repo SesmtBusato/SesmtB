@@ -22,16 +22,35 @@ import {
   Bell,
   Share2,
   RefreshCw,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export default function App() {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('safetrack_theme') as 'dark' | 'light') || 'dark';
+  });
   const [activeTab, setActiveTab] = useState<'dashboard' | 'table' | 'kanban' | 'calendar' | 'public-form'>('dashboard');
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [notifications, setNotifications] = useState<NotificationLog[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // Sync theme with body element
+  useEffect(() => {
+    localStorage.setItem('safetrack_theme', theme);
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Google User & Token State
   const [googleUser, setGoogleUser] = useState<User | null>(null);
@@ -178,7 +197,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b111c] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+    <div className={`min-h-screen theme-bg-main ${theme === 'light' ? 'bg-[#f8fafc] text-slate-800' : 'bg-[#0b111c] text-slate-100'} flex flex-col font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200`}>
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-70 bg-[#121c2d] border border-[#2a456e] text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs animate-in slide-in-from-bottom-2">
@@ -188,11 +207,11 @@ export default function App() {
       )}
 
       {/* Main Navigation Header */}
-      <header className="sticky top-0 z-40 bg-[#0d1422]/90 backdrop-blur-md border-b border-[#1b2b44] px-4 sm:px-6 py-3 shadow-lg shadow-black/20">
+      <header className={`sticky top-0 z-40 theme-header ${theme === 'light' ? 'bg-white/90 border-slate-200 shadow-sm' : 'bg-[#0d1422]/90 border-[#1b2b44] shadow-lg shadow-black/20'} backdrop-blur-md border-b px-4 sm:px-6 py-3 transition-colors duration-200`}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* Logo & Title */}
           <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center p-1 rounded-xl bg-[#131e30] border border-[#233a5e] shadow-md shadow-blue-900/30">
+            <div className={`relative flex items-center justify-center p-1 rounded-xl ${theme === 'light' ? 'bg-slate-100 border-slate-300 shadow-xs' : 'bg-[#131e30] border-[#233a5e] shadow-md shadow-blue-900/30'}`}>
               <img
                 src="/logo-icon.png"
                 alt="Busato"
@@ -201,10 +220,10 @@ export default function App() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-brand font-black text-base sm:text-lg text-white tracking-wider">
+                <h1 className={`font-brand font-black text-base sm:text-lg tracking-wider ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                   BUSATO
                 </h1>
-                <span className="text-[10px] bg-[#162740] text-[#38bdf8] font-mono font-semibold px-2.5 py-0.5 rounded-full border border-[#23436b]">
+                <span className={`text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full border ${theme === 'light' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-[#162740] text-[#38bdf8] border-[#23436b]'}`}>
                   Operações & SESMT
                 </span>
                 <span className="hidden md:inline-flex items-center gap-1.5 text-[10px] text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
@@ -212,7 +231,7 @@ export default function App() {
                   Tempo Real
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium">
+              <p className={`text-[11px] font-medium ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
                 Controle, Monitoramento e Gestão de Ocorrências
               </p>
             </div>
@@ -220,11 +239,38 @@ export default function App() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap justify-end">
+            {/* Theme Toggle Button (Preto / Branco) */}
+            <button
+              onClick={toggleTheme}
+              className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium rounded-xl border transition cursor-pointer ${
+                theme === 'light'
+                  ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+                  : 'bg-[#131d2e] hover:bg-[#1a273d] border-[#20334f] text-slate-300'
+              }`}
+              title={theme === 'light' ? 'Mudar para Fundo Preto (Modo Escuro)' : 'Mudar para Fundo Branco (Modo Claro)'}
+            >
+              {theme === 'light' ? (
+                <>
+                  <Moon className="w-4 h-4 text-indigo-600" />
+                  <span className="hidden sm:inline">Preto</span>
+                </>
+              ) : (
+                <>
+                  <Sun className="w-4 h-4 text-amber-400" />
+                  <span className="hidden sm:inline">Branco</span>
+                </>
+              )}
+            </button>
+
             {/* Realtime Refresh */}
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="p-2 text-slate-400 hover:text-white bg-[#131d2e] hover:bg-[#1a273d] border border-[#20334f] rounded-xl transition cursor-pointer"
+              className={`p-2 rounded-xl border transition cursor-pointer ${
+                theme === 'light'
+                  ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-600'
+                  : 'bg-[#131d2e] hover:bg-[#1a273d] border-[#20334f] text-slate-400 hover:text-white'
+              }`}
               title="Atualizar dados em tempo real"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-sky-400' : ''}`} />
@@ -274,16 +320,20 @@ export default function App() {
         </div>
 
         {/* Navigation Tabs Bar */}
-        <div className="max-w-7xl mx-auto flex items-center gap-1 mt-3 border-t border-[#18263a] pt-2 overflow-x-auto text-xs">
+        <div className={`max-w-7xl mx-auto flex items-center gap-1 mt-3 border-t pt-2 overflow-x-auto text-xs ${theme === 'light' ? 'border-slate-200' : 'border-[#18263a]'}`}>
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
               activeTab === 'dashboard'
-                ? 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
+                ? theme === 'light'
+                  ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                  : 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
+                : theme === 'light'
+                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
             }`}
           >
-            <BarChart3 className="w-3.5 h-3.5 text-sky-400" />
+            <BarChart3 className={`w-3.5 h-3.5 ${theme === 'light' && activeTab === 'dashboard' ? 'text-white' : 'text-sky-400'}`} />
             <span>Dashboard & Indicadores</span>
           </button>
 
@@ -291,11 +341,15 @@ export default function App() {
             onClick={() => setActiveTab('table')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
               activeTab === 'table'
-                ? 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
+                ? theme === 'light'
+                  ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                  : 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
+                : theme === 'light'
+                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
             }`}
           >
-            <ListFilter className="w-3.5 h-3.5 text-blue-400" />
+            <ListFilter className={`w-3.5 h-3.5 ${theme === 'light' && activeTab === 'table' ? 'text-white' : 'text-blue-400'}`} />
             <span>Controle de Eventos ({events.length})</span>
           </button>
 
@@ -303,11 +357,15 @@ export default function App() {
             onClick={() => setActiveTab('kanban')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
               activeTab === 'kanban'
-                ? 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
+                ? theme === 'light'
+                  ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                  : 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
+                : theme === 'light'
+                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
             }`}
           >
-            <Kanban className="w-3.5 h-3.5 text-indigo-400" />
+            <Kanban className={`w-3.5 h-3.5 ${theme === 'light' && activeTab === 'kanban' ? 'text-white' : 'text-indigo-400'}`} />
             <span>Quadro de Status (Kanban)</span>
           </button>
 
@@ -315,11 +373,15 @@ export default function App() {
             onClick={() => setActiveTab('calendar')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
               activeTab === 'calendar'
-                ? 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
+                ? theme === 'light'
+                  ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                  : 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
+                : theme === 'light'
+                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
             }`}
           >
-            <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+            <Calendar className={`w-3.5 h-3.5 ${theme === 'light' && activeTab === 'calendar' ? 'text-white' : 'text-emerald-400'}`} />
             <span>Google Agenda & Prazos</span>
           </button>
         </div>

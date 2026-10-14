@@ -10,6 +10,7 @@ import { EventFormModal } from './components/EventFormModal';
 import { EventDetailModal } from './components/EventDetailModal';
 import { GoogleCalendarScheduleModal } from './components/GoogleCalendarScheduleModal';
 import { NotificationCenterModal } from './components/NotificationCenterModal';
+import { SettingsManagerModal } from './components/SettingsManagerModal';
 import { GoogleAuthButton } from './components/GoogleAuthButton';
 import { User } from 'firebase/auth';
 import {
@@ -24,7 +25,8 @@ import {
   RefreshCw,
   FileSpreadsheet,
   Sun,
-  Moon
+  Moon,
+  Sliders
 } from 'lucide-react';
 
 export default function App() {
@@ -61,6 +63,7 @@ export default function App() {
   const [selectedEvent, setSelectedEvent] = useState<EventRecord | null>(null);
   const [schedulingEvent, setSchedulingEvent] = useState<EventRecord | null>(null);
   const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Filter State for Table
@@ -191,6 +194,7 @@ export default function App() {
     return (
       <PublicFormView
         nextItemNumber={nextItemNumber}
+        settings={settings}
         onBackToDashboard={() => setActiveTab('dashboard')}
       />
     );
@@ -288,6 +292,16 @@ export default function App() {
                   {notifications.length}
                 </span>
               )}
+            </button>
+
+            {/* Gestão de Dados e Alertas (Encarregados, Equipamentos, Turnos e E-mails) */}
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition cursor-pointer"
+              title="Gerenciar Encarregados, Turnos, Equipamentos e E-mails de Alerta"
+            >
+              <Sliders className="w-3.5 h-3.5 text-amber-400" />
+              <span>Gestão de Cadastros</span>
             </button>
 
             {/* Public Link Share */}
@@ -466,6 +480,7 @@ export default function App() {
       {showNewEventModal && (
         <EventFormModal
           nextItemNumber={nextItemNumber}
+          settings={settings}
           onClose={() => setShowNewEventModal(false)}
           onSuccess={handleEventCreated}
         />
@@ -474,6 +489,7 @@ export default function App() {
       {selectedEvent && (
         <EventDetailModal
           event={selectedEvent}
+          settings={settings}
           onClose={() => setSelectedEvent(null)}
           onUpdate={handleEventUpdated}
           onDelete={handleDeleteEvent}
@@ -505,6 +521,18 @@ export default function App() {
             const saved = await api.saveSettings(newSettings);
             setSettings(saved);
             showToast('Configurações de e-mail atualizadas.');
+          }}
+        />
+      )}
+
+      {showSettingsModal && (
+        <SettingsManagerModal
+          settings={settings}
+          onClose={() => setShowSettingsModal(false)}
+          onSave={async (newSettings) => {
+            const saved = await api.saveSettings(newSettings);
+            setSettings(saved);
+            showToast('Dados cadastrais e alertas salvos com sucesso!');
           }}
         />
       )}

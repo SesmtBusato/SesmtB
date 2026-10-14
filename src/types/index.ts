@@ -77,6 +77,12 @@ export interface AppSettings {
   companyName: string;
   notificationEmails: string[];
   autoNotifyOnCreate: boolean;
+  notifyOnUpdate: boolean;
   googleCalendarEnabled: boolean;
   publicFormEnabled: boolean;
+  // Dynamic lists editable by user
+  supervisors: string[];
+  shifts: string[];
+  equipments: string[];
+  areas: string[];
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { EventRecord, AreaType, SeverityType, StatusType } from '../types';
+import { EventRecord, AreaType, SeverityType, StatusType, AppSettings } from '../types';
 import { api } from '../services/api';
 import { X, Send, AlertTriangle, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
@@ -7,41 +7,48 @@ interface Props {
   onClose: () => void;
   onSuccess: (newEvent: EventRecord) => void;
   nextItemNumber: number;
+  settings?: AppSettings;
 }
 
-const COMMON_AREAS: AreaType[] = ['USINA', 'PORTO', 'BASE', 'EXTERNO'];
-const COMMON_SUPERVISORS = [
-  'CRISTALLY NETTO',
-  'DIEGO NEVES',
-  'THIAGO DIAS',
-  'HENRIQUE ZANOLI',
-  'GABRIELE MONTARROYOS',
-  'DEIVID ROGESTER',
-  'EDUARDO BOY',
-  'WADSON ANTONIO',
-  'WELLINGTON REIS',
-  'EDUANE PEROVANO',
-  'AGRIMALDO DIAS',
-  'LEONE PAIVA',
-  'KURT COUTO',
-  'PAULO GONDORINE',
-  'CLEITON CONCEIÇÃO',
-];
+export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNumber, settings }) => {
+  const commonAreas = settings?.areas && settings.areas.length > 0 ? settings.areas : ['USINA', 'PORTO', 'BASE', 'EXTERNO'];
+  const commonSupervisors = settings?.supervisors && settings.supervisors.length > 0 ? settings.supervisors : [
+    'CRISTALLY NETTO',
+    'DIEGO NEVES',
+    'THIAGO DIAS',
+    'HENRIQUE ZANOLI',
+    'GABRIELE MONTARROYOS',
+    'DEIVID ROGESTER',
+    'EDUARDO BOY',
+    'WADSON ANTONIO',
+    'WELLINGTON REIS',
+    'EDUANE PEROVANO',
+    'AGRIMALDO DIAS',
+    'LEONE PAIVA',
+    'KURT COUTO',
+    'PAULO GONDORINE',
+    'CLEITON CONCEIÇÃO',
+  ];
+  const commonEquipments = settings?.equipments && settings.equipments.length > 0 ? settings.equipments : [
+    'CAMINHÃO PIPA',
+    'MINI CARREGADEIRA',
+    'PÁ CARREGADEIRA',
+    'CAMINHÃO CAÇAMBA',
+    'CAMINHÃO BROOK',
+    'VEICULO LEVE OPERACIONAL',
+    'EMPILHADEIRA',
+    'CARRETA PRANCHA',
+    'MOTONIVELADORA',
+    'N/A'
+  ];
+  const commonShifts = settings?.shifts && settings.shifts.length > 0 ? settings.shifts : [
+    'Turno A (Manhã)',
+    'Turno B (Tarde)',
+    'Turno C (Noite/Madrugada)',
+    'Turno D',
+    'Administrativo'
+  ];
 
-const COMMON_EQUIPMENTS = [
-  'CAMINHÃO PIPA',
-  'MINI CARREGADEIRA',
-  'PÁ CARREGADEIRA',
-  'CAMINHÃO CAÇAMBA',
-  'CAMINHÃO BROOK',
-  'VEICULO LEVE OPERACIONAL',
-  'EMPILHADEIRA',
-  'CARRETA PRANCHA',
-  'MOTONIVELADORA',
-  'N/A'
-];
-
-export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNumber }) => {
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
   const nowTime = today.toTimeString().slice(0, 5);
@@ -57,14 +64,14 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
 
   const [dateInput, setDateInput] = useState<string>(todayStr);
   const [horario, setHorario] = useState<string>(nowTime);
-  const [area, setArea] = useState<string>('USINA');
+  const [area, setArea] = useState<string>(commonAreas[0] || 'USINA');
   const [local, setLocal] = useState<string>('');
-  const [equipamento, setEquipamento] = useState<string>('CAMINHÃO PIPA');
+  const [equipamento, setEquipamento] = useState<string>(commonEquipments[0] || 'CAMINHÃO PIPA');
   const [placaTag, setPlacaTag] = useState<string>('');
   const [envolvido, setEnvolvido] = useState<string>('');
-  const [letraTurno, setLetraTurno] = useState<string>('Turno A');
+  const [letraTurno, setLetraTurno] = useState<string>(commonShifts[0] || 'Turno A (Manhã)');
   const [estavaDeExtra, setEstavaDeExtra] = useState<'Sim' | 'Não'>('Não');
-  const [encarregado, setEncarregado] = useState<string>('CRISTALLY NETTO');
+  const [encarregado, setEncarregado] = useState<string>(commonSupervisors[0] || 'CRISTALLY NETTO');
   const [tipoOcorrencia, setTipoOcorrencia] = useState<string>('Dano Material / Manobra');
   const [reincidente, setReincidente] = useState<'Sim' | 'Não'>('Não');
   const [quandoOcorreu, setQuandoOcorreu] = useState<string>('Durante atividade');
@@ -206,7 +213,7 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
                   onChange={(e) => setArea(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
                 >
-                  {COMMON_AREAS.map((a) => (
+                  {commonAreas.map((a) => (
                     <option key={a} value={a}>{a}</option>
                   ))}
                 </select>
@@ -234,7 +241,7 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
                   onChange={(e) => setEquipamento(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
                 >
-                  {COMMON_EQUIPMENTS.map((eq) => (
+                  {commonEquipments.map((eq) => (
                     <option key={eq} value={eq}>{eq}</option>
                   ))}
                 </select>
@@ -270,7 +277,7 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
                   onChange={(e) => setEncarregado(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
                 >
-                  {COMMON_SUPERVISORS.map((sup) => (
+                  {commonSupervisors.map((sup) => (
                     <option key={sup} value={sup}>{sup}</option>
                   ))}
                 </select>
@@ -286,11 +293,9 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
                   onChange={(e) => setLetraTurno(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
                 >
-                  <option value="Turno A">Turno A (Manhã)</option>
-                  <option value="Turno B">Turno B (Tarde)</option>
-                  <option value="Turno C">Turno C (Noite/Madrugada)</option>
-                  <option value="Turno D">Turno D</option>
-                  <option value="Administrativo">Administrativo</option>
+                  {commonShifts.map((sh) => (
+                    <option key={sh} value={sh}>{sh}</option>
+                  ))}
                 </select>
               </div>
 
@@ -398,7 +403,14 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
             <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-[11px] text-slate-400">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Notificação automática será enviada para <strong>alysonmish@gmail.com</strong></span>
+                <span>
+                  Alerta automático configurado para:{' '}
+                  <strong className="text-sky-300">
+                    {settings?.notificationEmails && settings.notificationEmails.length > 0
+                      ? settings.notificationEmails.slice(0, 2).join(', ') + (settings.notificationEmails.length > 2 ? ` (+${settings.notificationEmails.length - 2})` : '')
+                      : 'Equipe SESMT'}
+                  </strong>
+                </span>
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">

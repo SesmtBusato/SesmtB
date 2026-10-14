@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { EventRecord, StatusType } from '../types';
+import { EventRecord, StatusType, AppSettings } from '../types';
 import { exportSingleEventDossierPDF } from '../services/pdfService';
 import { buildGoogleCalendarWebUrl } from '../services/googleCalendarService';
 import {
@@ -14,11 +14,13 @@ import {
   CheckCircle,
   ExternalLink,
   Save,
-  Trash2
+  Trash2,
+  Edit3
 } from 'lucide-react';
 
 interface Props {
   event: EventRecord;
+  settings?: AppSettings;
   onClose: () => void;
   onUpdate: (updated: EventRecord) => void;
   onDelete?: (id: string) => void;
@@ -27,6 +29,7 @@ interface Props {
 
 export const EventDetailModal: React.FC<Props> = ({
   event,
+  settings,
   onClose,
   onUpdate,
   onDelete,
@@ -35,8 +38,24 @@ export const EventDetailModal: React.FC<Props> = ({
   const [currentStatus, setCurrentStatus] = useState<StatusType>(event.status);
   const [observacao, setObservacao] = useState<string>(event.observacao || '');
   const [prazoAnalise, setPrazoAnalise] = useState<string>(event.prazoAnalise || '');
+  const [encarregado, setEncarregado] = useState<string>(event.encarregado || '');
+  const [envolvido, setEnvolvido] = useState<string>(event.envolvido || '');
+  const [letraTurno, setLetraTurno] = useState<string>(event.letraTurno || '');
+  const [equipamento, setEquipamento] = useState<string>(event.equipamento || '');
+  const [area, setArea] = useState<string>(event.area || '');
+  const [local, setLocal] = useState<string>(event.local || '');
+  const [placaTag, setPlacaTag] = useState<string>(event.placaTag || '');
+  const [descricao, setDescricao] = useState<string>(event.descricao || '');
+  const [descricaoDano, setDescricaoDano] = useState<string>(event.descricaoDano || '');
+
+  const [isEditingFull, setIsEditingFull] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const supervisorsList = settings?.supervisors || [];
+  const equipmentsList = settings?.equipments || [];
+  const shiftsList = settings?.shifts || [];
+  const areasList = settings?.areas || [];
 
   const handleSave = () => {
     setIsSaving(true);
@@ -45,10 +64,20 @@ export const EventDetailModal: React.FC<Props> = ({
       status: currentStatus,
       observacao,
       prazoAnalise,
+      encarregado,
+      envolvido,
+      letraTurno,
+      equipamento,
+      area,
+      local,
+      placaTag,
+      descricao,
+      descricaoDano,
     };
     onUpdate(updated);
     setIsSaving(false);
     setSavedSuccess(true);
+    setIsEditingFull(false);
     setTimeout(() => setSavedSuccess(false), 2500);
   };
 
@@ -130,11 +159,24 @@ export const EventDetailModal: React.FC<Props> = ({
 
             <div className="flex items-center gap-2">
               <button
+                type="button"
+                onClick={() => setIsEditingFull(!isEditingFull)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition cursor-pointer border ${
+                  isEditingFull
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                }`}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>{isEditingFull ? 'Visualizar Detalhes' : 'Editar Dados Cadastrais'}</span>
+              </button>
+
+              <button
                 onClick={() => onOpenCalendarModal(event)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded-lg font-medium transition cursor-pointer"
               >
                 <Calendar className="w-3.5 h-3.5" />
-                <span>Agendar na Google Agenda</span>
+                <span className="hidden sm:inline">Google Agenda</span>
               </button>
 
               <a
@@ -153,22 +195,58 @@ export const EventDetailModal: React.FC<Props> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Responsáveis e Envolvidos */}
             <div className="p-3.5 bg-slate-800/50 rounded-xl border border-slate-700/60 space-y-2">
-              <div className="flex items-center gap-2 text-slate-300 font-semibold border-b border-slate-700/50 pb-1.5">
-                <User className="w-4 h-4 text-amber-400" />
-                <span>Pessoas e Gestão</span>
+              <div className="flex items-center justify-between border-b border-slate-700/50 pb-1.5">
+                <div className="flex items-center gap-2 text-slate-300 font-semibold">
+                  <User className="w-4 h-4 text-amber-400" />
+                  <span>Pessoas e Gestão</span>
+                </div>
+                {isEditingFull && <span className="text-[10px] text-amber-400 font-mono">Modo Edição Ativo</span>}
               </div>
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <div>
                   <span className="text-slate-400 block">Colaborador Envolvido</span>
-                  <span className="text-white font-medium">{event.envolvido || 'Não informado'}</span>
+                  {isEditingFull ? (
+                    <input
+                      type="text"
+                      value={envolvido}
+                      onChange={(e) => setEnvolvido(e.target.value)}
+                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                    />
+                  ) : (
+                    <span className="text-white font-medium">{event.envolvido || 'Não informado'}</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 block">Encarregado / Supervisor</span>
-                  <span className="text-white font-medium">{event.encarregado || 'Não informado'}</span>
+                  {isEditingFull ? (
+                    <select
+                      value={encarregado}
+                      onChange={(e) => setEncarregado(e.target.value)}
+                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                    >
+                      {supervisorsList.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-white font-medium">{event.encarregado || 'Não informado'}</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 block">Turno / Horário</span>
-                  <span className="text-slate-200">{event.letraTurno || 'Geral'}</span>
+                  {isEditingFull ? (
+                    <select
+                      value={letraTurno}
+                      onChange={(e) => setLetraTurno(e.target.value)}
+                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                    >
+                      {shiftsList.map((sh) => (
+                        <option key={sh} value={sh}>{sh}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-slate-200">{event.letraTurno || 'Geral'}</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 block">Estava de Extra?</span>
@@ -189,26 +267,70 @@ export const EventDetailModal: React.FC<Props> = ({
 
             {/* Equipamento & Local */}
             <div className="p-3.5 bg-slate-800/50 rounded-xl border border-slate-700/60 space-y-2">
-              <div className="flex items-center gap-2 text-slate-300 font-semibold border-b border-slate-700/50 pb-1.5">
-                <Truck className="w-4 h-4 text-blue-400" />
-                <span>Equipamento & Localização</span>
+              <div className="flex items-center justify-between border-b border-slate-700/50 pb-1.5">
+                <div className="flex items-center gap-2 text-slate-300 font-semibold">
+                  <Truck className="w-4 h-4 text-blue-400" />
+                  <span>Equipamento & Localização</span>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <div>
                   <span className="text-slate-400 block">Tipo de Equipamento</span>
-                  <span className="text-white font-medium">{event.equipamento || 'N/A'}</span>
+                  {isEditingFull ? (
+                    <select
+                      value={equipamento}
+                      onChange={(e) => setEquipamento(e.target.value)}
+                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                    >
+                      {equipmentsList.map((eq) => (
+                        <option key={eq} value={eq}>{eq}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-white font-medium">{event.equipamento || 'N/A'}</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 block">Placa / Tag Operacional</span>
-                  <span className="text-white font-mono">{event.placaTag || '--'}</span>
+                  {isEditingFull ? (
+                    <input
+                      type="text"
+                      value={placaTag}
+                      onChange={(e) => setPlacaTag(e.target.value.toUpperCase())}
+                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white font-mono"
+                    />
+                  ) : (
+                    <span className="text-white font-mono">{event.placaTag || '--'}</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 block">Área Macro</span>
-                  <span className="text-slate-200">{event.area}</span>
+                  {isEditingFull ? (
+                    <select
+                      value={area}
+                      onChange={(e) => setArea(e.target.value)}
+                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                    >
+                      {areasList.map((ar) => (
+                        <option key={ar} value={ar}>{ar}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-slate-200">{event.area}</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 block">Local Específico</span>
-                  <span className="text-slate-200">{event.local}</span>
+                  {isEditingFull ? (
+                    <input
+                      type="text"
+                      value={local}
+                      onChange={(e) => setLocal(e.target.value)}
+                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                    />
+                  ) : (
+                    <span className="text-slate-200">{event.local}</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 block">Momento da Ocorrência</span>

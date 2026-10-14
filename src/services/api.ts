@@ -13,8 +13,46 @@ export const DEFAULT_SETTINGS: AppSettings = {
     'gestao.risco@busato.com.br'
   ],
   autoNotifyOnCreate: true,
+  notifyOnUpdate: true,
   googleCalendarEnabled: true,
-  publicFormEnabled: true
+  publicFormEnabled: true,
+  supervisors: [
+    'CRISTALLY NETTO',
+    'DIEGO NEVES',
+    'THIAGO DIAS',
+    'HENRIQUE ZANOLI',
+    'GABRIELE MONTARROYOS',
+    'DEIVID ROGESTER',
+    'EDUARDO BOY',
+    'WADSON ANTONIO',
+    'WELLINGTON REIS',
+    'EDUANE PEROVANO',
+    'AGRIMALDO DIAS',
+    'LEONE PAIVA',
+    'KURT COUTO',
+    'PAULO GONDORINE',
+    'CLEITON CONCEIÇÃO'
+  ],
+  shifts: [
+    'Turno A (Manhã)',
+    'Turno B (Tarde)',
+    'Turno C (Noite/Madrugada)',
+    'Turno D',
+    'Administrativo'
+  ],
+  equipments: [
+    'CAMINHÃO PIPA',
+    'MINI CARREGADEIRA',
+    'PÁ CARREGADEIRA',
+    'CAMINHÃO CAÇAMBA',
+    'CAMINHÃO BROOK',
+    'VEICULO LEVE OPERACIONAL',
+    'EMPILHADEIRA',
+    'CARRETA PRANCHA',
+    'MOTONIVELADORA',
+    'N/A'
+  ],
+  areas: ['USINA', 'PORTO', 'BASE', 'EXTERNO', 'OUTROS']
 };
 
 function getLocalEvents(): EventRecord[] {

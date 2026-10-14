@@ -6,23 +6,62 @@ import { ShieldCheck, Send, CheckCircle2, ArrowLeft, Copy, Check } from 'lucide-
 interface Props {
   onBackToDashboard: () => void;
   nextItemNumber: number;
+  settings?: AppSettings;
 }
 
-export const PublicFormView: React.FC<Props> = ({ onBackToDashboard, nextItemNumber }) => {
+export const PublicFormView: React.FC<Props> = ({ onBackToDashboard, nextItemNumber, settings }) => {
+  const commonAreas = settings?.areas && settings.areas.length > 0 ? settings.areas : ['USINA', 'PORTO', 'BASE', 'EXTERNO'];
+  const commonSupervisors = settings?.supervisors && settings.supervisors.length > 0 ? settings.supervisors : [
+    'CRISTALLY NETTO',
+    'DIEGO NEVES',
+    'THIAGO DIAS',
+    'HENRIQUE ZANOLI',
+    'GABRIELE MONTARROYOS',
+    'DEIVID ROGESTER',
+    'EDUARDO BOY',
+    'WADSON ANTONIO',
+    'WELLINGTON REIS',
+    'EDUANE PEROVANO',
+    'AGRIMALDO DIAS',
+    'LEONE PAIVA',
+    'KURT COUTO',
+    'PAULO GONDORINE',
+    'CLEITON CONCEIÇÃO',
+  ];
+  const commonEquipments = settings?.equipments && settings.equipments.length > 0 ? settings.equipments : [
+    'CAMINHÃO PIPA',
+    'MINI CARREGADEIRA',
+    'PÁ CARREGADEIRA',
+    'CAMINHÃO CAÇAMBA',
+    'CAMINHÃO BROOK',
+    'VEICULO LEVE OPERACIONAL',
+    'EMPILHADEIRA',
+    'CARRETA PRANCHA',
+    'MOTONIVELADORA',
+    'N/A'
+  ];
+  const commonShifts = settings?.shifts && settings.shifts.length > 0 ? settings.shifts : [
+    'Turno A (Manhã)',
+    'Turno B (Tarde)',
+    'Turno C (Noite/Madrugada)',
+    'Turno D',
+    'Administrativo'
+  ];
+
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
   const nowTime = today.toTimeString().slice(0, 5);
 
   const [dateInput, setDateInput] = useState<string>(todayStr);
   const [horario, setHorario] = useState<string>(nowTime);
-  const [area, setArea] = useState<string>('USINA');
+  const [area, setArea] = useState<string>(commonAreas[0] || 'USINA');
   const [local, setLocal] = useState<string>('');
-  const [equipamento, setEquipamento] = useState<string>('CAMINHÃO PIPA');
+  const [equipamento, setEquipamento] = useState<string>(commonEquipments[0] || 'CAMINHÃO PIPA');
   const [placaTag, setPlacaTag] = useState<string>('');
   const [envolvido, setEnvolvido] = useState<string>('');
-  const [letraTurno, setLetraTurno] = useState<string>('Turno A');
+  const [letraTurno, setLetraTurno] = useState<string>(commonShifts[0] || 'Turno A (Manhã)');
   const [estavaDeExtra, setEstavaDeExtra] = useState<'Sim' | 'Não'>('Não');
-  const [encarregado, setEncarregado] = useState<string>('CRISTALLY NETTO');
+  const [encarregado, setEncarregado] = useState<string>(commonSupervisors[0] || 'CRISTALLY NETTO');
   const [tipoOcorrencia, setTipoOcorrencia] = useState<string>('Dano Material / Manobra');
   const [classificacaoReal, setClassificacaoReal] = useState<SeverityType>('Leve');
   const [descricao, setDescricao] = useState<string>('');
@@ -188,10 +227,9 @@ export const PublicFormView: React.FC<Props> = ({ onBackToDashboard, nextItemNum
                     onChange={(e) => setArea(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
                   >
-                    <option value="USINA">USINA</option>
-                    <option value="PORTO">PORTO</option>
-                    <option value="BASE">BASE</option>
-                    <option value="EXTERNO">EXTERNO</option>
+                    {commonAreas.map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -221,26 +259,30 @@ export const PublicFormView: React.FC<Props> = ({ onBackToDashboard, nextItemNum
                 </div>
                 <div>
                   <label className="block font-medium text-slate-300 mb-1">Encarregado da Frente *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Cristally Netto, Diego Neves..."
+                  <select
                     value={encarregado}
                     onChange={(e) => setEncarregado(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
-                  />
+                  >
+                    {commonSupervisors.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-medium text-slate-300 mb-1">Equipamento</label>
-                  <input
-                    type="text"
+                  <select
                     value={equipamento}
                     onChange={(e) => setEquipamento(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
-                  />
+                  >
+                    {commonEquipments.map((eq) => (
+                      <option key={eq} value={eq}>{eq}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block font-medium text-slate-300 mb-1">Placa ou TAG</label>
@@ -259,10 +301,9 @@ export const PublicFormView: React.FC<Props> = ({ onBackToDashboard, nextItemNum
                     onChange={(e) => setLetraTurno(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
                   >
-                    <option value="Turno A">Turno A (Manhã)</option>
-                    <option value="Turno B">Turno B (Tarde)</option>
-                    <option value="Turno C">Turno C (Noite)</option>
-                    <option value="Turno D">Turno D</option>
+                    {commonShifts.map((sh) => (
+                      <option key={sh} value={sh}>{sh}</option>
+                    ))}
                   </select>
                 </div>
               </div>

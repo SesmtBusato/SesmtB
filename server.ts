@@ -36,8 +36,46 @@ const DEFAULT_SETTINGS = {
   companyName: 'BUSATO - Gestão e Monitoramento de Ocorrências',
   notificationEmails: ['alysonmish@gmail.com', 'sesmt@busato.com.br', 'operacoes@busato.com.br'],
   autoNotifyOnCreate: true,
+  notifyOnUpdate: true,
   googleCalendarEnabled: true,
-  publicFormEnabled: true
+  publicFormEnabled: true,
+  supervisors: [
+    'CRISTALLY NETTO',
+    'DIEGO NEVES',
+    'THIAGO DIAS',
+    'HENRIQUE ZANOLI',
+    'GABRIELE MONTARROYOS',
+    'DEIVID ROGESTER',
+    'EDUARDO BOY',
+    'WADSON ANTONIO',
+    'WELLINGTON REIS',
+    'EDUANE PEROVANO',
+    'AGRIMALDO DIAS',
+    'LEONE PAIVA',
+    'KURT COUTO',
+    'PAULO GONDORINE',
+    'CLEITON CONCEIÇÃO'
+  ],
+  shifts: [
+    'Turno A (Manhã)',
+    'Turno B (Tarde)',
+    'Turno C (Noite/Madrugada)',
+    'Turno D',
+    'Administrativo'
+  ],
+  equipments: [
+    'CAMINHÃO PIPA',
+    'MINI CARREGADEIRA',
+    'PÁ CARREGADEIRA',
+    'CAMINHÃO CAÇAMBA',
+    'CAMINHÃO BROOK',
+    'VEICULO LEVE OPERACIONAL',
+    'EMPILHADEIRA',
+    'CARRETA PRANCHA',
+    'MOTONIVELADORA',
+    'N/A'
+  ],
+  areas: ['USINA', 'PORTO', 'BASE', 'EXTERNO', 'OUTROS']
 };
 
 function readJsonFile<T>(filePath: string, fallback: T): T {
@@ -260,11 +298,50 @@ app.put('/api/events/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Evento não encontrado' });
     }
 
+    const oldStatus = events[index].status;
     const updatedEvent = {
       ...events[index],
       ...req.body,
       updatedAt: new Date().toISOString()
     };
+
+    // Trigger notification if status was changed and notifyOnUpdate is active
+    const settings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
+    if (settings.notifyOnUpdate && req.body.status && req.body.status !== oldStatus) {
+      const notifications = readJsonFile<any[]>(NOTIFICATIONS_FILE, []);
+      const notif = {
+        id: `notif-${Date.now()}`,
+        eventId: updatedEvent.id,
+        item: updatedEvent.item,
+        envolvido: updatedEvent.envolvido || 'Geral',
+        encarregado: updatedEvent.encarregado || 'SESMT',
+        area: updatedEvent.area || 'Geral',
+        recipients: settings.notificationEmails,
+        subject: `[Atualização Ocorrência #${updatedEvent.item}] Novo Status: ${updatedEvent.status}`,
+        timestamp: new Date().toISOString(),
+        status: 'Entregue',
+        previewText: `Ocorrência #${updatedEvent.item} (${updatedEvent.area}) teve o status alterado de "${oldStatus}" para "${updatedEvent.status}".`
+      };
+      notifications.unshift(notif);
+      writeJsonFile(NOTIFICATIONS_FILE, notifications.slice(0, 100));
+
+      if (supabase) {
+        try {
+          await supabase.from('notifications').insert({
+            id: notif.id,
+            event_id: notif.eventId,
+            item: notif.item,
+            envolvido: notif.envolvido,
+            encarregado: notif.encarregado,
+            area: notif.area,
+            recipients: notif.recipients,
+            subject: notif.subject,
+            status: notif.status,
+            preview_text: notif.previewText
+          });
+        } catch {}
+      }
+    }
 
     if (supabase) {
       try {
@@ -370,43 +447,53 @@ app.post('/api/notifications/send', async (req: Request, res: Response) => {
 });
 
 app.get('/api/settings', async (_req: Request, res: Response) => {
+  const localSettings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
   if (supabase) {
     try {
       const { data } = await supabase.from('settings').select('*').eq('id', 'app_settings').single();
       if (data) {
         return res.json({
-          companyName: data.company_name,
-          notificationEmails: data.notification_emails,
-          autoNotifyOnCreate: data.auto_notify_on_create,
-          googleCalendarEnabled: data.google_calendar_enabled,
-          publicFormEnabled: data.public_form_enabled
+          companyName: data.company_name || localSettings.companyName,
+          notificationEmails: data.notification_emails || localSettings.notificationEmails,
+          autoNotifyOnCreate: data.auto_notify_on_create ?? localSettings.autoNotifyOnCreate,
+          notifyOnUpdate: localSettings.notifyOnUpdate ?? true,
+          googleCalendarEnabled: data.google_calendar_enabled ?? localSettings.googleCalendarEnabled,
+          publicFormEnabled: data.public_form_enabled ?? localSettings.publicFormEnabled,
+          supervisors: localSettings.supervisors || DEFAULT_SETTINGS.supervisors,
+          shifts: localSettings.shifts || DEFAULT_SETTINGS.shifts,
+          equipments: localSettings.equipments || DEFAULT_SETTINGS.equipments,
+          areas: localSettings.areas || DEFAULT_SETTINGS.areas
         });
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Supabase get settings error, fallback to local:', e);
+    }
   }
-  const settings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
-  res.json(settings);
+  res.json(localSettings);
 });
 
 app.post('/api/settings', async (req: Request, res: Response) => {
-  const settings = { ...DEFAULT_SETTINGS, ...req.body };
+  const currentSettings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
+  const updatedSettings = { ...currentSettings, ...req.body };
+  writeJsonFile(SETTINGS_FILE, updatedSettings);
+
   if (supabase) {
     try {
       await supabase.from('settings').upsert({
         id: 'app_settings',
-        company_name: settings.companyName,
-        notification_emails: settings.notificationEmails,
-        auto_notify_on_create: settings.autoNotifyOnCreate,
-        google_calendar_enabled: settings.googleCalendarEnabled,
-        public_form_enabled: settings.publicFormEnabled,
+        company_name: updatedSettings.companyName,
+        notification_emails: updatedSettings.notificationEmails,
+        auto_notify_on_create: updatedSettings.autoNotifyOnCreate,
+        google_calendar_enabled: updatedSettings.googleCalendarEnabled,
+        public_form_enabled: updatedSettings.publicFormEnabled,
         updated_at: new Date().toISOString()
       });
     } catch (e) {
       console.warn('Supabase settings upsert warning:', e);
     }
   }
-  writeJsonFile(SETTINGS_FILE, settings);
-  res.json(settings);
+
+  res.json(updatedSettings);
 });
 
 // Server configuration & static/vite middleware mounting

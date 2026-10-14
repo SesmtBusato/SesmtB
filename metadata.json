@@ -1,0 +1,6 @@
+{
+  "name": "SafeTrack - Gestão e Monitoramento de Eventos e Ocorrências",
+  "description": "Sistema completo para controle e acompanhamento em tempo real de ocorrências e eventos operacionais, com dashboards analíticos, indicadores por área e pessoas, formulário público de registro, relatórios PDF e integração com Google Agenda.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

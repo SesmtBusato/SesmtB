@@ -190,11 +190,15 @@ export default function App() {
     setActiveTab('table');
   };
 
+  const isExternalForm = typeof window !== 'undefined' && 
+    (new URLSearchParams(window.location.search).get('form') === 'public' || new URLSearchParams(window.location.search).get('form') === 'true');
+
   if (activeTab === 'public-form') {
     return (
       <PublicFormView
         nextItemNumber={nextItemNumber}
         settings={settings}
+        isExternal={isExternalForm}
         onBackToDashboard={() => setActiveTab('dashboard')}
       />
     );

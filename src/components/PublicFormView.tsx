@@ -7,9 +7,10 @@ interface Props {
   onBackToDashboard: () => void;
   nextItemNumber: number;
   settings?: AppSettings;
+  isExternal?: boolean;
 }
 
-export const PublicFormView: React.FC<Props> = ({ onBackToDashboard, nextItemNumber, settings }) => {
+export const PublicFormView: React.FC<Props> = ({ onBackToDashboard, nextItemNumber, settings, isExternal }) => {
   const commonAreas = settings?.areas && settings.areas.length > 0 ? settings.areas : ['USINA', 'PORTO', 'BASE', 'EXTERNO'];
   const commonSupervisors = settings?.supervisors && settings.supervisors.length > 0 ? settings.supervisors : [
     'CRISTALLY NETTO',
@@ -122,14 +123,16 @@ export const PublicFormView: React.FC<Props> = ({ onBackToDashboard, nextItemNum
     <div className="min-h-screen bg-[#0b111c] text-slate-100 flex flex-col justify-between p-4 sm:p-8 font-sans">
       <div className="max-w-2xl w-full mx-auto">
         {/* Top bar */}
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={onBackToDashboard}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Voltar ao Sistema BUSATO</span>
-          </button>
+        <div className={`flex items-center ${isExternal ? 'justify-end' : 'justify-between'} mb-6`}>
+          {!isExternal && (
+            <button
+              onClick={onBackToDashboard}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Voltar ao Sistema BUSATO</span>
+            </button>
+          )}
 
           <button
             onClick={handleCopyLink}
@@ -167,12 +170,14 @@ export const PublicFormView: React.FC<Props> = ({ onBackToDashboard, nextItemNum
               >
                 Preencher Outro Registro
               </button>
-              <button
-                onClick={onBackToDashboard}
-                className="px-5 py-2.5 bg-[#131d2e] hover:bg-[#1a273d] text-slate-200 border border-[#20334f] rounded-xl text-xs font-semibold transition cursor-pointer"
-              >
-                Acessar Painel de Controle
-              </button>
+              {!isExternal && (
+                <button
+                  onClick={onBackToDashboard}
+                  className="px-5 py-2.5 bg-[#131d2e] hover:bg-[#1a273d] text-slate-200 border border-[#20334f] rounded-xl text-xs font-semibold transition cursor-pointer"
+                >
+                  Acessar Painel de Controle
+                </button>
+              )}
             </div>
           </div>
         ) : (

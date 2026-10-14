@@ -81,6 +81,24 @@ export const SettingsManagerModal: React.FC<Props> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // Sync state if settings prop arrives/updates asynchronously
+  React.useEffect(() => {
+    if (settings) {
+      setFormData((prev) => ({
+        companyName: settings.companyName || prev.companyName,
+        notificationEmails: settings.notificationEmails?.length ? settings.notificationEmails : prev.notificationEmails,
+        autoNotifyOnCreate: settings.autoNotifyOnCreate ?? prev.autoNotifyOnCreate,
+        notifyOnUpdate: settings.notifyOnUpdate ?? prev.notifyOnUpdate,
+        googleCalendarEnabled: settings.googleCalendarEnabled ?? prev.googleCalendarEnabled,
+        publicFormEnabled: settings.publicFormEnabled ?? prev.publicFormEnabled,
+        supervisors: settings.supervisors?.length ? settings.supervisors : prev.supervisors,
+        shifts: settings.shifts?.length ? settings.shifts : prev.shifts,
+        equipments: settings.equipments?.length ? settings.equipments : prev.equipments,
+        areas: settings.areas?.length ? settings.areas : prev.areas,
+      }));
+    }
+  }, [settings]);
+
   // Email handlers
   const handleAddEmail = (e: React.FormEvent) => {
     e.preventDefault();

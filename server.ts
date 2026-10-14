@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
@@ -13,6 +14,12 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
+
+// Supabase Client Setup (Backend with Service Secret)
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://olrtzxamixygmrftcczc.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || '';
+
+export const supabase = SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 const DATA_DIR = path.resolve(__dirname, 'data');
 const EVENTS_FILE = path.resolve(DATA_DIR, 'events.json');
@@ -55,12 +62,101 @@ function writeJsonFile(filePath: string, data: unknown): void {
   }
 }
 
+// Map database snake_case to frontend camelCase
+function mapDbEventToApp(db: any) {
+  if (!db) return null;
+  return {
+    id: db.id,
+    item: db.item,
+    data: db.data,
+    horario: db.horario,
+    diaSemana: db.dia_semana,
+    descricao: db.descricao,
+    local: db.local,
+    area: db.area,
+    equipamento: db.equipamento || '',
+    placaTag: db.placa_tag || '',
+    envolvido: db.envolvido || '',
+    letraTurno: db.letra_turno || '',
+    estavaDeExtra: db.estava_de_extra || '',
+    encarregado: db.encarregado || '',
+    dataAdmissao: db.data_admissao || '',
+    tempoEmpresa: db.tempo_empresa || '',
+    dataNascimento: db.data_nascimento || '',
+    idade: db.idade || '',
+    tipoOcorrencia: db.tipo_ocorrencia,
+    reincidente: db.reincidente || '',
+    quandoOcorreu: db.quando_ocorreu || '',
+    descricaoDano: db.descricao_dano || '',
+    classificacaoReal: db.classificacao_real,
+    classificacaoPotencial: db.classificacao_potencial,
+    numeroCat: db.numero_cat || '',
+    periodoAfastamento: db.periodo_afastamento || '',
+    prazoAnalise: db.prazo_analise || '',
+    status: db.status,
+    observacao: db.observacao || '',
+    notificadoEmail: db.notificado_email,
+    emailsNotificados: db.emails_notificados || [],
+    googleCalendarEventId: db.google_calendar_event_id,
+    googleCalendarHtmlLink: db.google_calendar_html_link,
+    createdAt: db.created_at,
+    updatedAt: db.updated_at
+  };
+}
+
+function mapAppEventToDb(appEvent: any) {
+  return {
+    id: appEvent.id,
+    item: Number(appEvent.item),
+    data: appEvent.data,
+    horario: appEvent.horario,
+    dia_semana: appEvent.diaSemana,
+    descricao: appEvent.descricao,
+    local: appEvent.local,
+    area: appEvent.area,
+    equipamento: appEvent.equipamento,
+    placa_tag: appEvent.placaTag,
+    envolvido: appEvent.envolvido,
+    letra_turno: appEvent.letraTurno,
+    estava_de_extra: appEvent.estavaDeExtra,
+    encarregado: appEvent.encarregado,
+    data_admissao: appEvent.dataAdmissao,
+    tempo_empresa: appEvent.tempoEmpresa,
+    data_nascimento: appEvent.dataNascimento,
+    idade: appEvent.idade,
+    tipo_ocorrencia: appEvent.tipoOcorrencia,
+    reincidente: appEvent.reincidente,
+    quando_ocorreu: appEvent.quandoOcorreu,
+    descricao_dano: appEvent.descricaoDano,
+    classificacao_real: appEvent.classificacaoReal,
+    classificacao_potencial: appEvent.classificacaoPotencial,
+    numero_cat: appEvent.numeroCat,
+    periodo_afastamento: appEvent.periodoAfastamento,
+    prazo_analise: appEvent.prazoAnalise,
+    status: appEvent.status,
+    observacao: appEvent.observacao,
+    notificado_email: appEvent.notificadoEmail || false,
+    emails_notificados: appEvent.emailsNotificados || [],
+    google_calendar_event_id: appEvent.googleCalendarEventId,
+    google_calendar_html_link: appEvent.googleCalendarHtmlLink,
+    updated_at: new Date().toISOString()
+  };
+}
+
 // API Routes
 app.get('/api/events', async (_req: Request, res: Response) => {
   try {
+    if (supabase) {
+      const { data, error } = await supabase.from('events').select('*').order('item', { ascending: false });
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(mapDbEventToApp);
+        writeJsonFile(EVENTS_FILE, mapped);
+        return res.json(mapped);
+      }
+    }
+
     let events = readJsonFile<any[]>(EVENTS_FILE, []);
     if (!events || events.length === 0) {
-      // Load initial events from TypeScript source if available
       try {
         const { INITIAL_EVENTS } = await import('./src/data/initialEvents.ts');
         events = INITIAL_EVENTS;
@@ -71,11 +167,12 @@ app.get('/api/events', async (_req: Request, res: Response) => {
     }
     res.json(events);
   } catch (err) {
+    console.error('Error fetching events:', err);
     res.status(500).json({ error: 'Erro ao carregar eventos' });
   }
 });
 
-app.post('/api/events', (req: Request, res: Response) => {
+app.post('/api/events', async (req: Request, res: Response) => {
   try {
     const events = readJsonFile<any[]>(EVENTS_FILE, []);
     const newEvent = req.body;
@@ -90,7 +187,6 @@ app.post('/api/events', (req: Request, res: Response) => {
     newEvent.createdAt = new Date().toISOString();
     newEvent.updatedAt = new Date().toISOString();
 
-    // Log notification if auto-notify is enabled
     const settings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
     if (settings.autoNotifyOnCreate) {
       const notifications = readJsonFile<any[]>(NOTIFICATIONS_FILE, []);
@@ -111,6 +207,37 @@ app.post('/api/events', (req: Request, res: Response) => {
       writeJsonFile(NOTIFICATIONS_FILE, notifications.slice(0, 100));
       newEvent.notificadoEmail = true;
       newEvent.emailsNotificados = settings.notificationEmails;
+
+      if (supabase) {
+        try {
+          await supabase.from('notifications').insert({
+            id: notif.id,
+            event_id: notif.eventId,
+            item: notif.item,
+            envolvido: notif.envolvido,
+            encarregado: notif.encarregado,
+            area: notif.area,
+            recipients: notif.recipients,
+            subject: notif.subject,
+            status: notif.status,
+            preview_text: notif.previewText
+          });
+        } catch (e) {
+          console.warn('Failed to insert notification into Supabase:', e);
+        }
+      }
+    }
+
+    if (supabase) {
+      try {
+        const dbPayload = mapAppEventToDb(newEvent);
+        const { error } = await supabase.from('events').insert(dbPayload);
+        if (error) {
+          console.warn('Supabase insert warning (fallbacking to local):', error.message);
+        }
+      } catch (supErr) {
+        console.warn('Supabase insert exception:', supErr);
+      }
     }
 
     events.unshift(newEvent);
@@ -123,7 +250,7 @@ app.post('/api/events', (req: Request, res: Response) => {
   }
 });
 
-app.put('/api/events/:id', (req: Request, res: Response) => {
+app.put('/api/events/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const events = readJsonFile<any[]>(EVENTS_FILE, []);
@@ -139,6 +266,15 @@ app.put('/api/events/:id', (req: Request, res: Response) => {
       updatedAt: new Date().toISOString()
     };
 
+    if (supabase) {
+      try {
+        const dbPayload = mapAppEventToDb(updatedEvent);
+        await supabase.from('events').update(dbPayload).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase update warning:', e);
+      }
+    }
+
     events[index] = updatedEvent;
     writeJsonFile(EVENTS_FILE, events);
 
@@ -148,11 +284,19 @@ app.put('/api/events/:id', (req: Request, res: Response) => {
   }
 });
 
-app.delete('/api/events/:id', (req: Request, res: Response) => {
+app.delete('/api/events/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const events = readJsonFile<any[]>(EVENTS_FILE, []);
     const filtered = events.filter((e) => e.id !== id);
+
+    if (supabase) {
+      try {
+        await supabase.from('events').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase delete warning:', e);
+      }
+    }
 
     writeJsonFile(EVENTS_FILE, filtered);
     res.json({ success: true, deletedId: id });
@@ -161,8 +305,14 @@ app.delete('/api/events/:id', (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/notifications', (_req: Request, res: Response) => {
+app.get('/api/notifications', async (_req: Request, res: Response) => {
   try {
+    if (supabase) {
+      const { data, error } = await supabase.from('notifications').select('*').order('timestamp', { ascending: false }).limit(100);
+      if (!error && data && data.length > 0) {
+        return res.json(data);
+      }
+    }
     const notifications = readJsonFile<any[]>(NOTIFICATIONS_FILE, []);
     res.json(notifications);
   } catch (err) {
@@ -170,7 +320,7 @@ app.get('/api/notifications', (_req: Request, res: Response) => {
   }
 });
 
-app.post('/api/notifications/send', (req: Request, res: Response) => {
+app.post('/api/notifications/send', async (req: Request, res: Response) => {
   try {
     const { eventId, subject, recipients, previewText } = req.body;
     const notifications = readJsonFile<any[]>(NOTIFICATIONS_FILE, []);
@@ -191,6 +341,25 @@ app.post('/api/notifications/send', (req: Request, res: Response) => {
       previewText: previewText || 'Notificação enviada com sucesso.'
     };
 
+    if (supabase) {
+      try {
+        await supabase.from('notifications').insert({
+          id: notif.id,
+          event_id: notif.eventId,
+          item: notif.item,
+          envolvido: notif.envolvido,
+          encarregado: notif.encarregado,
+          area: notif.area,
+          recipients: notif.recipients,
+          subject: notif.subject,
+          status: notif.status,
+          preview_text: notif.previewText
+        });
+      } catch (e) {
+        console.warn('Supabase notification insert warning:', e);
+      }
+    }
+
     notifications.unshift(notif);
     writeJsonFile(NOTIFICATIONS_FILE, notifications.slice(0, 100));
 
@@ -200,13 +369,42 @@ app.post('/api/notifications/send', (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/settings', (_req: Request, res: Response) => {
+app.get('/api/settings', async (_req: Request, res: Response) => {
+  if (supabase) {
+    try {
+      const { data } = await supabase.from('settings').select('*').eq('id', 'app_settings').single();
+      if (data) {
+        return res.json({
+          companyName: data.company_name,
+          notificationEmails: data.notification_emails,
+          autoNotifyOnCreate: data.auto_notify_on_create,
+          googleCalendarEnabled: data.google_calendar_enabled,
+          publicFormEnabled: data.public_form_enabled
+        });
+      }
+    } catch {}
+  }
   const settings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
   res.json(settings);
 });
 
-app.post('/api/settings', (req: Request, res: Response) => {
+app.post('/api/settings', async (req: Request, res: Response) => {
   const settings = { ...DEFAULT_SETTINGS, ...req.body };
+  if (supabase) {
+    try {
+      await supabase.from('settings').upsert({
+        id: 'app_settings',
+        company_name: settings.companyName,
+        notification_emails: settings.notificationEmails,
+        auto_notify_on_create: settings.autoNotifyOnCreate,
+        google_calendar_enabled: settings.googleCalendarEnabled,
+        public_form_enabled: settings.publicFormEnabled,
+        updated_at: new Date().toISOString()
+      });
+    } catch (e) {
+      console.warn('Supabase settings upsert warning:', e);
+    }
+  }
   writeJsonFile(SETTINGS_FILE, settings);
   res.json(settings);
 });
@@ -234,3 +432,4 @@ async function startServer() {
 }
 
 startServer();
+

@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-brand: 'Montserrat', sans-serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Busato Palette */
+    --color-busato-blue: #1e73be;
+    --color-busato-blue-light: #2c8be8;
+    --color-busato-blue-dark: #155592;
+    --color-busato-navy: #2d456b;
+    --color-busato-charcoal: #525355;
+    --color-busato-bg: #0b111c;
+    --color-busato-surface: #121b2a;
+    --color-busato-surface-card: #162236;
+    --color-busato-border: #1e2f4a;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-busato-bg);
+    color: #e2e8f0;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-brand {
+    font-family: var(--font-brand);
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b111c;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #233754;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1e73be;
+}
+
+/* Glassmorphism & Glow Utilities */
+.busato-glass {
+  background: rgba(18, 27, 42, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(46, 73, 114, 0.45);
+}
+
+.busato-card {
+  background: linear-gradient(180deg, rgba(22, 34, 54, 0.9) 0%, rgba(15, 23, 38, 0.95) 100%);
+  border: 1px solid rgba(46, 73, 114, 0.35);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+}
+
+.busato-card-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.busato-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(30, 115, 190, 0.55);
+  box-shadow: 0 10px 25px -5px rgba(30, 115, 190, 0.18);
+}
+
+.busato-glow-blue {
+  box-shadow: 0 0 25px -4px rgba(30, 115, 190, 0.4);
+}
+
+.busato-gradient-btn {
+  background: linear-gradient(135deg, #247dd4 0%, #175e9e 100%);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  box-shadow: 0 2px 10px -1px rgba(30, 115, 190, 0.35);
+  transition: all 0.2s ease;
+}
+
+.busato-gradient-btn:hover {
+  background: linear-gradient(135deg, #2e8beb 0%, #1c6ab0 100%);
+  box-shadow: 0 4px 16px -1px rgba(30, 115, 190, 0.5);
+  border-color: rgba(147, 197, 253, 0.5);
+}
+
+.busato-tag-blue {
+  background: rgba(30, 115, 190, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}

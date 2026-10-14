@@ -1,0 +1,451 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { EventRecord, FilterState, StatusType, NotificationLog, AppSettings } from './types';
+import { api, DEFAULT_SETTINGS } from './services/api';
+import { DashboardView } from './components/DashboardView';
+import { EventsTableView } from './components/EventsTableView';
+import { KanbanBoardView } from './components/KanbanBoardView';
+import { CalendarAgendaView } from './components/CalendarAgendaView';
+import { PublicFormView } from './components/PublicFormView';
+import { EventFormModal } from './components/EventFormModal';
+import { EventDetailModal } from './components/EventDetailModal';
+import { GoogleCalendarScheduleModal } from './components/GoogleCalendarScheduleModal';
+import { NotificationCenterModal } from './components/NotificationCenterModal';
+import { GoogleAuthButton } from './components/GoogleAuthButton';
+import { User } from 'firebase/auth';
+import {
+  ShieldAlert,
+  BarChart3,
+  ListFilter,
+  Kanban,
+  Calendar,
+  Plus,
+  Bell,
+  Share2,
+  RefreshCw,
+  FileSpreadsheet
+} from 'lucide-react';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'table' | 'kanban' | 'calendar' | 'public-form'>('dashboard');
+  const [events, setEvents] = useState<EventRecord[]>([]);
+  const [notifications, setNotifications] = useState<NotificationLog[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // Google User & Token State
+  const [googleUser, setGoogleUser] = useState<User | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  // Modal States
+  const [showNewEventModal, setShowNewEventModal] = useState<boolean>(false);
+  const [selectedEvent, setSelectedEvent] = useState<EventRecord | null>(null);
+  const [schedulingEvent, setSchedulingEvent] = useState<EventRecord | null>(null);
+  const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Filter State for Table
+  const [filterState, setFilterState] = useState<FilterState>({
+    search: '',
+    status: '',
+    area: '',
+    encarregado: '',
+    envolvido: '',
+    equipamento: '',
+    dataInicio: '',
+    dataFim: '',
+    classificacao: '',
+  });
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Check URL query parameters for direct public form
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('form') === 'public' || params.get('form') === 'true') {
+      setActiveTab('public-form');
+    }
+  }, []);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [eventsData, notifsData, settingsData] = await Promise.all([
+        api.getEvents(),
+        api.getNotifications(),
+        api.getSettings(),
+      ]);
+      setEvents(eventsData);
+      setNotifications(notifsData);
+      setSettings(settingsData);
+    } catch (err) {
+      console.error('Error loading initial data:', err);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    loadData();
+  };
+
+  // Next sequence number calculation
+  const nextItemNumber = events.reduce((max, ev) => Math.max(max, Number(ev.item) || 0), 1003) + 1;
+
+  // Event handlers
+  const handleEventCreated = (newEvent: EventRecord) => {
+    setEvents((prev) => [newEvent, ...prev]);
+    showToast(`Ocorrência #${newEvent.item} registrada com sucesso! E-mail enviado.`);
+    loadData();
+  };
+
+  const handleEventUpdated = async (updated: EventRecord) => {
+    const res = await api.updateEvent(updated.id, updated);
+    setEvents((prev) => prev.map((e) => (e.id === updated.id ? res : e)));
+    setSelectedEvent(res);
+    showToast(`Ocorrência #${updated.item} atualizada.`);
+  };
+
+  const handleQuickStatusChange = async (id: string, newStatus: StatusType) => {
+    const target = events.find((e) => e.id === id);
+    if (!target) return;
+    const updated = await api.updateEvent(id, { status: newStatus });
+    setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+    showToast(`Status do item #${target.item} alterado para "${newStatus}".`);
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    await api.deleteEvent(id);
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    showToast('Ocorrência removida com sucesso.');
+  };
+
+  const handleFilterByArea = (area: string, start?: string, end?: string) => {
+    setFilterState((prev) => ({
+      ...prev,
+      area,
+      dataInicio: start !== undefined ? start : prev.dataInicio,
+      dataFim: end !== undefined ? end : prev.dataFim,
+    }));
+    setActiveTab('table');
+  };
+
+  const handleFilterBySupervisor = (encarregado: string, start?: string, end?: string) => {
+    setFilterState((prev) => ({
+      ...prev,
+      encarregado,
+      dataInicio: start !== undefined ? start : prev.dataInicio,
+      dataFim: end !== undefined ? end : prev.dataFim,
+    }));
+    setActiveTab('table');
+  };
+
+  const handleFilterByPerson = (envolvido: string, start?: string, end?: string) => {
+    setFilterState((prev) => ({
+      ...prev,
+      search: envolvido,
+      dataInicio: start !== undefined ? start : prev.dataInicio,
+      dataFim: end !== undefined ? end : prev.dataFim,
+    }));
+    setActiveTab('table');
+  };
+
+  const handleFilterByStatus = (status: string, start?: string, end?: string) => {
+    setFilterState((prev) => ({
+      ...prev,
+      status,
+      dataInicio: start !== undefined ? start : prev.dataInicio,
+      dataFim: end !== undefined ? end : prev.dataFim,
+    }));
+    setActiveTab('table');
+  };
+
+  if (activeTab === 'public-form') {
+    return (
+      <PublicFormView
+        nextItemNumber={nextItemNumber}
+        onBackToDashboard={() => setActiveTab('dashboard')}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0b111c] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 z-70 bg-[#121c2d] border border-[#2a456e] text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs animate-in slide-in-from-bottom-2">
+          <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Main Navigation Header */}
+      <header className="sticky top-0 z-40 bg-[#0d1422]/90 backdrop-blur-md border-b border-[#1b2b44] px-4 sm:px-6 py-3 shadow-lg shadow-black/20">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Logo & Title */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex items-center justify-center p-1 rounded-xl bg-[#131e30] border border-[#233a5e] shadow-md shadow-blue-900/30">
+              <img
+                src="/logo-icon.png"
+                alt="Busato"
+                className="w-8 h-8 object-contain drop-shadow-[0_2px_8px_rgba(30,115,190,0.6)]"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-brand font-black text-base sm:text-lg text-white tracking-wider">
+                  BUSATO
+                </h1>
+                <span className="text-[10px] bg-[#162740] text-[#38bdf8] font-mono font-semibold px-2.5 py-0.5 rounded-full border border-[#23436b]">
+                  Operações & SESMT
+                </span>
+                <span className="hidden md:inline-flex items-center gap-1.5 text-[10px] text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Tempo Real
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-medium">
+                Controle, Monitoramento e Gestão de Ocorrências
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {/* Realtime Refresh */}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="p-2 text-slate-400 hover:text-white bg-[#131d2e] hover:bg-[#1a273d] border border-[#20334f] rounded-xl transition cursor-pointer"
+              title="Atualizar dados em tempo real"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-sky-400' : ''}`} />
+            </button>
+
+            {/* Notification Bell */}
+            <button
+              onClick={() => setShowNotificationModal(true)}
+              className="relative p-2 text-slate-400 hover:text-white bg-[#131d2e] hover:bg-[#1a273d] border border-[#20334f] rounded-xl transition cursor-pointer"
+              title="Central de Notificações e E-mails"
+            >
+              <Bell className="w-4 h-4" />
+              {notifications.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#1e73be] text-[9px] font-bold text-white rounded-full flex items-center justify-center shadow-xs">
+                  {notifications.length}
+                </span>
+              )}
+            </button>
+
+            {/* Public Link Share */}
+            <button
+              onClick={() => setActiveTab('public-form')}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 bg-[#131d2e] hover:bg-[#1a273d] border border-[#20334f] rounded-xl transition cursor-pointer"
+              title="Abrir ou copiar link de formulário para motoristas e operadores"
+            >
+              <Share2 className="w-3.5 h-3.5 text-sky-400" />
+              <span>Link p/ Preenchimento</span>
+            </button>
+
+            {/* Google Sign In Component */}
+            <GoogleAuthButton
+              onAuthStateChange={(u, token) => {
+                setGoogleUser(u);
+                setAccessToken(token);
+              }}
+            />
+
+            {/* Novo Evento CTA */}
+            <button
+              onClick={() => setShowNewEventModal(true)}
+              className="busato-gradient-btn flex items-center gap-1.5 px-3.5 py-1.5 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/25 transition active:scale-98 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Novo Evento</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Navigation Tabs Bar */}
+        <div className="max-w-7xl mx-auto flex items-center gap-1 mt-3 border-t border-[#18263a] pt-2 overflow-x-auto text-xs">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
+              activeTab === 'dashboard'
+                ? 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-sky-400" />
+            <span>Dashboard & Indicadores</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('table')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
+              activeTab === 'table'
+                ? 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
+            }`}
+          >
+            <ListFilter className="w-3.5 h-3.5 text-blue-400" />
+            <span>Controle de Eventos ({events.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('kanban')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
+              activeTab === 'kanban'
+                ? 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
+            }`}
+          >
+            <Kanban className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Quadro de Status (Kanban)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
+              activeTab === 'calendar'
+                ? 'bg-[#182a44] text-white border border-[#2b4d79] shadow-sm font-semibold'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#121d2d]'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Google Agenda & Prazos</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
+            <div className="w-10 h-10 border-3 border-[#1e73be]/20 border-t-[#1e73be] rounded-full animate-spin" />
+            <p className="text-xs text-slate-400">Carregando base de ocorrências e indicadores...</p>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'dashboard' && (
+              <DashboardView
+                events={events}
+                onSelectFilterArea={handleFilterByArea}
+                onSelectFilterSupervisor={handleFilterBySupervisor}
+                onSelectFilterPerson={handleFilterByPerson}
+                onSelectFilterStatus={handleFilterByStatus}
+                onNavigateToTableWithDates={(start, end) => {
+                  setFilterState((prev) => ({
+                    ...prev,
+                    dataInicio: start,
+                    dataFim: end,
+                  }));
+                  setActiveTab('table');
+                }}
+              />
+            )}
+
+            {activeTab === 'table' && (
+              <EventsTableView
+                events={events}
+                filterState={filterState}
+                onFilterChange={setFilterState}
+                onSelectEvent={(ev) => setSelectedEvent(ev)}
+                onOpenCalendarModal={(ev) => setSchedulingEvent(ev)}
+                onQuickStatusChange={handleQuickStatusChange}
+              />
+            )}
+
+            {activeTab === 'kanban' && (
+              <KanbanBoardView
+                events={events}
+                onSelectEvent={(ev) => setSelectedEvent(ev)}
+                onOpenCalendarModal={(ev) => setSchedulingEvent(ev)}
+                onStatusChange={handleQuickStatusChange}
+              />
+            )}
+
+            {activeTab === 'calendar' && (
+              <CalendarAgendaView
+                events={events}
+                user={googleUser}
+                accessToken={accessToken}
+                onOpenCalendarModal={(ev) => setSchedulingEvent(ev)}
+                onSelectEvent={(ev) => setSelectedEvent(ev)}
+              />
+            )}
+          </>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-[#18263a] py-4 px-6 text-center text-xs text-slate-400 bg-[#0d1422]/60">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <img src="/logo-icon.png" alt="Busato" className="w-4 h-4 object-contain opacity-70" />
+            <span className="font-semibold text-slate-300">BUSATO</span>
+            <span>• Sistema Integrado de Operações, Logística e Segurança do Trabalho</span>
+          </div>
+          <div className="flex items-center gap-4 text-slate-400">
+            <span>Notificações: alysonmish@gmail.com</span>
+            <span>Google Agenda Integrado</span>
+          </div>
+        </div>
+      </footer>
+
+      {/* Modals */}
+      {showNewEventModal && (
+        <EventFormModal
+          nextItemNumber={nextItemNumber}
+          onClose={() => setShowNewEventModal(false)}
+          onSuccess={handleEventCreated}
+        />
+      )}
+
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+          onUpdate={handleEventUpdated}
+          onDelete={handleDeleteEvent}
+          onOpenCalendarModal={(ev) => {
+            setSelectedEvent(null);
+            setSchedulingEvent(ev);
+          }}
+        />
+      )}
+
+      {schedulingEvent && (
+        <GoogleCalendarScheduleModal
+          event={schedulingEvent}
+          accessToken={accessToken}
+          onClose={() => setSchedulingEvent(null)}
+          onSuccess={(updated) => {
+            handleEventUpdated(updated);
+            showToast(`Investigação do item #${updated.item} agendada na Google Agenda!`);
+          }}
+        />
+      )}
+
+      {showNotificationModal && (
+        <NotificationCenterModal
+          notifications={notifications}
+          settings={settings}
+          onClose={() => setShowNotificationModal(false)}
+          onUpdateSettings={async (newSettings) => {
+            const saved = await api.saveSettings(newSettings);
+            setSettings(saved);
+            showToast('Configurações de e-mail atualizadas.');
+          }}
+        />
+      )}
+    </div>
+  );
+}

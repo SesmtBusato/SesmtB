@@ -1,0 +1,11 @@
+{
+  "companyName": "SafeTrack Industrial - Monitoramento Operacional",
+  "notificationEmails": [
+    "alysonmish@gmail.com",
+    "sesmt@safetrack.com.br",
+    "operacoes@safetrack.com.br"
+  ],
+  "autoNotifyOnCreate": true,
+  "googleCalendarEnabled": true,
+  "publicFormEnabled": true
+}

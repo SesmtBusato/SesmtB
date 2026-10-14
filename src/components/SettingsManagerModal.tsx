@@ -28,7 +28,51 @@ export const SettingsManagerModal: React.FC<Props> = ({
   onSave,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'notifications' | 'supervisors' | 'equipments' | 'shifts' | 'areas'>('notifications');
-  const [formData, setFormData] = useState<AppSettings>(settings);
+  const [formData, setFormData] = useState<AppSettings>(() => ({
+    companyName: settings?.companyName || 'BUSATO - Gestão e Monitoramento de Ocorrências',
+    notificationEmails: settings?.notificationEmails || ['alysonmish@gmail.com', 'sesmt@busato.com.br', 'operacoes@busato.com.br'],
+    autoNotifyOnCreate: settings?.autoNotifyOnCreate ?? true,
+    notifyOnUpdate: settings?.notifyOnUpdate ?? true,
+    googleCalendarEnabled: settings?.googleCalendarEnabled ?? true,
+    publicFormEnabled: settings?.publicFormEnabled ?? true,
+    supervisors: settings?.supervisors && settings.supervisors.length > 0 ? settings.supervisors : [
+      'CRISTALLY NETTO',
+      'DIEGO NEVES',
+      'THIAGO DIAS',
+      'HENRIQUE ZANOLI',
+      'GABRIELE MONTARROYOS',
+      'DEIVID ROGESTER',
+      'EDUARDO BOY',
+      'WADSON ANTONIO',
+      'WELLINGTON REIS',
+      'EDUANE PEROVANO',
+      'AGRIMALDO DIAS',
+      'LEONE PAIVA',
+      'KURT COUTO',
+      'PAULO GONDORINE',
+      'CLEITON CONCEIÇÃO'
+    ],
+    shifts: settings?.shifts && settings.shifts.length > 0 ? settings.shifts : [
+      'Turno A (Manhã)',
+      'Turno B (Tarde)',
+      'Turno C (Noite/Madrugada)',
+      'Turno D',
+      'Administrativo'
+    ],
+    equipments: settings?.equipments && settings.equipments.length > 0 ? settings.equipments : [
+      'CAMINHÃO PIPA',
+      'MINI CARREGADEIRA',
+      'PÁ CARREGADEIRA',
+      'CAMINHÃO CAÇAMBA',
+      'CAMINHÃO BROOK',
+      'VEICULO LEVE OPERACIONAL',
+      'EMPILHADEIRA',
+      'CARRETA PRANCHA',
+      'MOTONIVELADORA',
+      'N/A'
+    ],
+    areas: settings?.areas && settings.areas.length > 0 ? settings.areas : ['USINA', 'PORTO', 'BASE', 'EXTERNO', 'OUTROS']
+  }));
   const [newEmail, setNewEmail] = useState('');
   const [newSupervisor, setNewSupervisor] = useState('');
   const [newEquipment, setNewEquipment] = useState('');
@@ -182,7 +226,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
             }`}
           >
             <Mail className="w-3.5 h-3.5" />
-            <span>Alertas & Destinatários ({formData.notificationEmails.length})</span>
+            <span>Alertas & Destinatários ({formData.notificationEmails?.length || 0})</span>
           </button>
 
           <button
@@ -194,7 +238,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
             }`}
           >
             <UserCheck className="w-3.5 h-3.5" />
-            <span>Encarregados ({formData.supervisors.length})</span>
+            <span>Encarregados ({formData.supervisors?.length || 0})</span>
           </button>
 
           <button
@@ -206,7 +250,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
             }`}
           >
             <Truck className="w-3.5 h-3.5" />
-            <span>Equipamentos ({formData.equipments.length})</span>
+            <span>Equipamentos ({formData.equipments?.length || 0})</span>
           </button>
 
           <button
@@ -218,7 +262,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>Turnos ({formData.shifts.length})</span>
+            <span>Turnos ({formData.shifts?.length || 0})</span>
           </button>
 
           <button
@@ -230,7 +274,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Áreas ({formData.areas.length})</span>
+            <span>Áreas ({formData.areas?.length || 0})</span>
           </button>
         </div>
 
@@ -278,7 +322,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
                     <span className="text-slate-400 text-[11px]">Adicione ou remova e-mails responsáveis por acompanhar os incidentes.</span>
                   </div>
                   <span className="text-[11px] font-mono text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20">
-                    {formData.notificationEmails.length} cadastrados
+                    {(formData.notificationEmails || []).length} cadastrados
                   </span>
                 </div>
 
@@ -300,7 +344,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
                 </form>
 
                 <div className="space-y-1.5 max-h-48 overflow-y-auto pt-2">
-                  {formData.notificationEmails.map((email) => (
+                  {(formData.notificationEmails || []).map((email) => (
                     <div
                       key={email}
                       className="flex items-center justify-between px-3 py-2 bg-[#131d2e] rounded-xl border border-[#1e2f4a] text-xs hover:border-slate-500/50 transition"
@@ -351,7 +395,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
               </form>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pt-2">
-                {formData.supervisors.map((name) => (
+                {(formData.supervisors || []).map((name) => (
                   <div
                     key={name}
                     className="flex items-center justify-between px-3 py-2 bg-[#131d2e] rounded-xl border border-[#1e2f4a] text-xs hover:border-slate-500/50 transition"
@@ -401,7 +445,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
               </form>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pt-2">
-                {formData.equipments.map((eq) => (
+                {(formData.equipments || []).map((eq) => (
                   <div
                     key={eq}
                     className="flex items-center justify-between px-3 py-2 bg-[#131d2e] rounded-xl border border-[#1e2f4a] text-xs hover:border-slate-500/50 transition"
@@ -451,7 +495,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
               </form>
 
               <div className="space-y-1.5 max-h-72 overflow-y-auto pt-2">
-                {formData.shifts.map((sh) => (
+                {(formData.shifts || []).map((sh) => (
                   <div
                     key={sh}
                     className="flex items-center justify-between px-3 py-2 bg-[#131d2e] rounded-xl border border-[#1e2f4a] text-xs hover:border-slate-500/50 transition"
@@ -501,7 +545,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
               </form>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pt-2">
-                {formData.areas.map((ar) => (
+                {(formData.areas || []).map((ar) => (
                   <div
                     key={ar}
                     className="flex items-center justify-between px-3 py-2 bg-[#131d2e] rounded-xl border border-[#1e2f4a] text-xs hover:border-slate-500/50 transition"

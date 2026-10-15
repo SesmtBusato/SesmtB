@@ -488,9 +488,44 @@ export const NotificationCenterModal: React.FC<Props> = ({
             )}
 
             {testResult && !testResult.ok && (
-              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
-                <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span className="break-words">Falha no disparo: {testResult.error}</span>
+              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex flex-col gap-2">
+                <div className="flex items-start gap-2">
+                  <XCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                  <span className="break-words font-medium">{testResult.error}</span>
+                </div>
+
+                {(testResult.error?.includes('timeout') || testResult.error?.includes('Timeout') || testResult.error?.includes('conectar')) && (
+                  <div className="p-2.5 rounded-lg bg-[#0e1626] border border-amber-500/40 text-amber-200 text-[11px] space-y-1.5">
+                    <strong className="block text-amber-300">💡 Como resolver o Connection timeout na Vercel:</strong>
+                    <p className="leading-relaxed">
+                      Provedores de nuvem como a Vercel executam funções em servidores com restrições de saída para portas SMTP (587/465) tradicionais.
+                    </p>
+                    <div className="pt-0.5 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowConfig(true);
+                          setSmtpPort(465);
+                          setSmtpSecure(true);
+                        }}
+                        className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded-md text-[10px] text-amber-200 font-semibold cursor-pointer"
+                      >
+                        Testar Porta 465 (SSL)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowConfig(true);
+                          applyPreset('resend');
+                        }}
+                        className="px-2.5 py-1 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 rounded-md text-[10px] text-sky-200 font-semibold cursor-pointer"
+                      >
+                        Usar Resend (API HTTP - Sem Bloqueio)
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

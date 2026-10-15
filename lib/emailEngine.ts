@@ -99,10 +99,15 @@ function getSmtpTransport(override?: SmtpConfigInput) {
       port,
       secure,
       auth: override.user ? { user: override.user.trim(), pass: override.pass || '' } : undefined,
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-    });
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
+      family: 4, // Força IPv4 no Node.js / AWS Lambda / Vercel para evitar timeout de rota IPv6
+      tls: {
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
+      }
+    } as any);
   }
 
   if (cachedTransport) return cachedTransport;
@@ -113,10 +118,15 @@ function getSmtpTransport(override?: SmtpConfigInput) {
     port,
     secure,
     auth: env('SMTP_USER') ? { user: env('SMTP_USER'), pass: env('SMTP_PASS') } : undefined,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
+    family: 4, // Força IPv4
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
+    }
+  } as any);
   return cachedTransport;
 }
 
@@ -171,8 +181,16 @@ export async function sendEmail(
     let friendlyError = rawMsg;
     if (rawMsg.includes('EAUTH') || rawMsg.includes('Invalid login') || rawMsg.includes('authentication failed')) {
       friendlyError = 'Falha de autenticação: usuário ou senha do e-mail incorretos. Em contas corporativas ou Gmail, utilize uma Senha de Aplicativo.';
-    } else if (rawMsg.includes('ECONNREFUSED') || rawMsg.includes('ETIMEDOUT') || rawMsg.includes('ENOTFOUND')) {
-      friendlyError = `Não foi possível conectar ao servidor SMTP (${override?.host || env('SMTP_HOST')}:${override?.port || env('SMTP_PORT')}). Verifique o endereço e a porta.`;
+    } else if (
+      rawMsg.includes('ECONNREFUSED') ||
+      rawMsg.includes('ETIMEDOUT') ||
+      rawMsg.includes('ENOTFOUND') ||
+      rawMsg.includes('Connection timeout') ||
+      rawMsg.includes('Greeting never received')
+    ) {
+      const hostName = override?.host || env('SMTP_HOST') || 'servidor';
+      const portNum = override?.port || env('SMTP_PORT') || '587';
+      friendlyError = `Tempo de conexão esgotado (${rawMsg}) ao conectar em ${hostName}:${portNum}. Servidores de nuvem (Vercel) podem ter restrições em portas SMTP tradicionais. Dica: teste a porta 465 com SSL ativado, ou utilize o atalho "⚡ Resend" (API HTTP porta 443, 100% estável na Vercel).`;
     }
     return { ok: false, provider, error: friendlyError };
   }

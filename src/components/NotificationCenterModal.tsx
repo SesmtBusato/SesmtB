@@ -46,18 +46,19 @@ export const NotificationCenterModal: React.FC<Props> = ({
 
   // Estado do painel de configuração de envio
   const [showConfig, setShowConfig] = useState<boolean>(false);
-  const [providerType, setProviderType] = useState<'office365' | 'gmail' | 'resend' | 'custom'>(() => {
-    if (settings.resendApiKey) return 'resend';
+  const [providerType, setProviderType] = useState<'kinghost' | 'resend' | 'gmail' | 'office365' | 'custom'>(() => {
+    if (settings.emailProvider === 'resend' || settings.resendApiKey) return 'resend';
+    if (settings.smtpHost?.includes('busato') || settings.smtpHost?.includes('kinghost')) return 'kinghost';
     if (settings.smtpHost?.includes('office365') || settings.smtpHost?.includes('outlook')) return 'office365';
     if (settings.smtpHost?.includes('gmail')) return 'gmail';
-    return 'custom';
+    return 'resend';
   });
-  const [smtpHost, setSmtpHost] = useState(settings.smtpHost || '');
+  const [smtpHost, setSmtpHost] = useState(settings.smtpHost || 'smtp.busato.com.br');
   const [smtpPort, setSmtpPort] = useState<number>(settings.smtpPort || 587);
   const [smtpSecure, setSmtpSecure] = useState<boolean>(settings.smtpSecure || false);
-  const [smtpUser, setSmtpUser] = useState(settings.smtpUser || '');
+  const [smtpUser, setSmtpUser] = useState(settings.smtpUser || 'alyson.oliveira@busato.com.br');
   const [smtpPass, setSmtpPass] = useState(settings.smtpPass || '');
-  const [emailFrom, setEmailFrom] = useState(settings.emailFrom || 'SESMT Busato <alertas@busato.com.br>');
+  const [emailFrom, setEmailFrom] = useState(settings.emailFrom || 'SESMT Busato <onboarding@resend.dev>');
   const [resendApiKey, setResendApiKey] = useState(settings.resendApiKey || '');
   const [showPassword, setShowPassword] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
@@ -67,22 +68,32 @@ export const NotificationCenterModal: React.FC<Props> = ({
     api.getEmailStatus(settings).then(setEngine);
   }, [settings]);
 
-  const applyPreset = (preset: 'office365' | 'gmail' | 'resend' | 'custom') => {
+  const applyPreset = (preset: 'kinghost' | 'resend' | 'gmail' | 'office365' | 'custom') => {
     setProviderType(preset);
-    if (preset === 'office365') {
+    if (preset === 'kinghost') {
+      setSmtpHost('smtp.busato.com.br');
+      setSmtpPort(587);
+      setSmtpSecure(false);
+      if (!smtpUser || smtpUser.includes('gmail')) {
+        setSmtpUser('alyson.oliveira@busato.com.br');
+      }
+      setEmailFrom('SESMT Busato <alyson.oliveira@busato.com.br>');
+    } else if (preset === 'resend') {
+      setEmailFrom('SESMT Busato <onboarding@resend.dev>');
+    } else if (preset === 'gmail') {
+      setSmtpHost('smtp.gmail.com');
+      setSmtpPort(465);
+      setSmtpSecure(true);
+      if (!smtpUser || smtpUser.includes('busato')) {
+        setSmtpUser('busatosesmt@gmail.com');
+      }
+      setEmailFrom('SESMT Busato <busatosesmt@gmail.com>');
+    } else if (preset === 'office365') {
       setSmtpHost('smtp.office365.com');
       setSmtpPort(587);
       setSmtpSecure(false);
       if (!emailFrom || emailFrom.includes('resend')) {
         setEmailFrom('SESMT Busato <alyson.oliveira@busatoloc.com.br>');
-      }
-    } else if (preset === 'gmail') {
-      setSmtpHost('smtp.gmail.com');
-      setSmtpPort(465);
-      setSmtpSecure(true);
-    } else if (preset === 'resend') {
-      if (!emailFrom || emailFrom.includes('busato')) {
-        setEmailFrom('SESMT Busato <onboarding@resend.dev>');
       }
     }
   };
@@ -259,18 +270,31 @@ export const NotificationCenterModal: React.FC<Props> = ({
                     <Sparkles className="w-3 h-3 text-amber-400" />
                     Escolha o tipo de servidor ou provedor:
                   </span>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-xs">
                     <button
                       type="button"
-                      onClick={() => applyPreset('office365')}
+                      onClick={() => applyPreset('kinghost')}
                       className={`p-2 rounded-lg border text-left transition cursor-pointer ${
-                        providerType === 'office365'
+                        providerType === 'kinghost'
                           ? 'bg-[#1e73be]/20 border-[#38bdf8] text-white'
                           : 'bg-[#101726] border-[#1e2f4a] text-slate-300 hover:bg-[#142036]'
                       }`}
                     >
-                      <strong className="block text-[11px]">🏢 Microsoft 365</strong>
-                      <span className="text-[10px] text-slate-400 block truncate">Outlook Corporativo</span>
+                      <strong className="block text-[11px] text-emerald-400">🌱 Busato (KingHost)</strong>
+                      <span className="text-[10px] text-slate-400 block truncate">Senha normal do e-mail</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => applyPreset('resend')}
+                      className={`p-2 rounded-lg border text-left transition cursor-pointer ${
+                        providerType === 'resend'
+                          ? 'bg-[#1e73be]/20 border-[#38bdf8] text-white'
+                          : 'bg-[#101726] border-[#1e2f4a] text-slate-300 hover:bg-[#142036]'
+                      }`}
+                    >
+                      <strong className="block text-[11px] text-sky-400">⚡ Resend</strong>
+                      <span className="text-[10px] text-slate-400 block truncate">API Nuvem (Sem SMTP)</span>
                     </button>
 
                     <button
@@ -288,15 +312,15 @@ export const NotificationCenterModal: React.FC<Props> = ({
 
                     <button
                       type="button"
-                      onClick={() => applyPreset('resend')}
+                      onClick={() => applyPreset('office365')}
                       className={`p-2 rounded-lg border text-left transition cursor-pointer ${
-                        providerType === 'resend'
+                        providerType === 'office365'
                           ? 'bg-[#1e73be]/20 border-[#38bdf8] text-white'
                           : 'bg-[#101726] border-[#1e2f4a] text-slate-300 hover:bg-[#142036]'
                       }`}
                     >
-                      <strong className="block text-[11px]">⚡ Resend</strong>
-                      <span className="text-[10px] text-slate-400 block truncate">API Key (Nuvem)</span>
+                      <strong className="block text-[11px]">🏢 M365</strong>
+                      <span className="text-[10px] text-slate-400 block truncate">Outlook Nuvem</span>
                     </button>
 
                     <button
@@ -309,10 +333,29 @@ export const NotificationCenterModal: React.FC<Props> = ({
                       }`}
                     >
                       <strong className="block text-[11px]">🌐 Outro SMTP</strong>
-                      <span className="text-[10px] text-slate-400 block truncate">Zoho, Hostinger...</span>
+                      <span className="text-[10px] text-slate-400 block truncate">Personalizado</span>
                     </button>
                   </div>
                 </div>
+
+                {/* Dicas contextuais por provedor */}
+                {providerType === 'resend' && (
+                  <div className="p-2.5 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-200 text-[11px] leading-relaxed">
+                    ⚡ <strong>Resend Ativo:</strong> Chave de API conectada! No modo gratuito do Resend (com remetente <code className="bg-sky-950 px-1 py-0.5 rounded text-sky-300">onboarding@resend.dev</code>), os e-mails são entregues na caixa postal cadastrada (<strong className="text-white">busatosesmt@gmail.com</strong>). Para enviar também para <code className="bg-sky-950 px-1 py-0.5 rounded text-sky-300">@busato.com.br</code>, valide o domínio em <a href="https://resend.com/domains" target="_blank" rel="noreferrer" className="underline font-bold text-white hover:text-sky-300">resend.com/domains</a> ou use a opção <strong>🌱 Busato (KingHost)</strong>.
+                  </div>
+                )}
+
+                {providerType === 'kinghost' && (
+                  <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 text-[11px] leading-relaxed">
+                    🌱 <strong>E-mail Corporativo Busato (KingHost):</strong> Servidor <code className="bg-emerald-950 px-1 py-0.5 rounded text-emerald-300">smtp.busato.com.br:587</code>. Digite o seu e-mail corporativo e a <strong>mesma senha que você usa para entrar no webmail</strong>. Não é necessário gerar senha de aplicativo!
+                  </div>
+                )}
+
+                {providerType === 'gmail' && (
+                  <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-[11px] leading-relaxed">
+                    📧 <strong>Gmail:</strong> Se o Google exibir a mensagem <em>"A configuração que você está procurando não está disponível para sua conta"</em>, é porque a conta ainda não possui a <strong>Verificação em 2 etapas</strong> ligada. Acesse <a href="https://myaccount.google.com/signinoptions/two-step-verification" target="_blank" rel="noreferrer" className="underline font-bold text-white">myaccount.google.com/signinoptions/two-step-verification</a> para ativar e, em seguida, crie a Senha de App em <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="underline font-bold text-white">myaccount.google.com/apppasswords</a>.
+                  </div>
+                )}
 
                 {/* Formulário de Campos */}
                 {providerType === 'resend' ? (
@@ -328,9 +371,6 @@ export const NotificationCenterModal: React.FC<Props> = ({
                         onChange={(e) => setResendApiKey(e.target.value)}
                         className="w-full px-3 py-1.5 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white font-mono text-xs focus:outline-hidden focus:border-[#38bdf8]"
                       />
-                      <span className="text-[10px] text-slate-400 block mt-1">
-                        Obtenha sua chave gratuita em <a href="https://resend.com" target="_blank" rel="noreferrer" className="text-sky-400 underline">resend.com</a>.
-                      </span>
                     </div>
 
                     <div>
@@ -355,7 +395,7 @@ export const NotificationCenterModal: React.FC<Props> = ({
                         </label>
                         <input
                           type="text"
-                          placeholder="ex: smtp.office365.com ou smtp.gmail.com"
+                          placeholder="ex: smtp.busato.com.br ou smtp.gmail.com"
                           value={smtpHost}
                           onChange={(e) => setSmtpHost(e.target.value)}
                           className="w-full px-3 py-1.5 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white font-mono text-xs focus:outline-hidden focus:border-[#38bdf8]"
@@ -379,11 +419,11 @@ export const NotificationCenterModal: React.FC<Props> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
                         <label className="block text-[11px] text-slate-300 font-medium mb-1">
-                          E-mail / Usuário SMTP:
+                          E-mail / Usuário:
                         </label>
                         <input
                           type="email"
-                          placeholder="seu.email@busatoloc.com.br"
+                          placeholder="seu.email@busato.com.br"
                           value={smtpUser}
                           onChange={(e) => setSmtpUser(e.target.value)}
                           className="w-full px-3 py-1.5 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white text-xs focus:outline-hidden focus:border-[#38bdf8]"
@@ -392,12 +432,12 @@ export const NotificationCenterModal: React.FC<Props> = ({
 
                       <div>
                         <label className="block text-[11px] text-slate-300 font-medium mb-1">
-                          Senha / Senha de Aplicativo:
+                          Senha:
                         </label>
                         <div className="relative">
                           <input
                             type={showPassword ? 'text' : 'password'}
-                            placeholder="Sua senha ou senha de app"
+                            placeholder="Sua senha de e-mail"
                             value={smtpPass}
                             onChange={(e) => setSmtpPass(e.target.value)}
                             className="w-full px-3 py-1.5 pr-8 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white text-xs focus:outline-hidden focus:border-[#38bdf8]"
@@ -405,7 +445,7 @@ export const NotificationCenterModal: React.FC<Props> = ({
                           <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
                             title={showPassword ? 'Ocultar senha' : 'Ver senha'}
                           >
                             {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -420,14 +460,11 @@ export const NotificationCenterModal: React.FC<Props> = ({
                       </label>
                       <input
                         type="text"
-                        placeholder="SESMT Busato <alyson.oliveira@busatoloc.com.br>"
+                        placeholder="SESMT Busato <seu.email@busato.com.br>"
                         value={emailFrom}
                         onChange={(e) => setEmailFrom(e.target.value)}
                         className="w-full px-3 py-1.5 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white text-xs focus:outline-hidden focus:border-[#38bdf8]"
                       />
-                      <span className="text-[10px] text-slate-400 block mt-1">
-                        Dica: contas do Microsoft 365 e Google exigem que o remetente seja o mesmo do usuário autenticado.
-                      </span>
                     </div>
                   </div>
                 )}

@@ -163,7 +163,14 @@ export async function sendEmail(
         body: JSON.stringify({ from: fromAddress, to: opts.to, subject: opts.subject, html: opts.html, text: opts.text }),
       });
       const body: any = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, provider, error: body?.message || `Resend HTTP ${res.status}` };
+      if (!res.ok) {
+        let msg = body?.message || `Resend HTTP ${res.status}`;
+        if (msg.includes('only send testing emails to your own email address')) {
+          const matchEmail = msg.match(/\(([^)]+)\)/)?.[1];
+          msg = `Restrição da conta Resend gratuita: envios diretos com remetente de teste (onboarding@resend.dev) só chegam no e-mail do titular da conta (${matchEmail || 'busatosesmt@gmail.com'}). Para enviar para e-mails corporativos da empresa (@busato.com.br), use o provedor KingHost / Gmail ou valide o domínio em resend.com/domains.`;
+        }
+        return { ok: false, provider, error: msg };
+      }
       return { ok: true, provider, messageId: body?.id };
     }
 
@@ -180,7 +187,7 @@ export async function sendEmail(
     const rawMsg = err?.message || String(err);
     let friendlyError = rawMsg;
     if (rawMsg.includes('EAUTH') || rawMsg.includes('Invalid login') || rawMsg.includes('authentication failed')) {
-      friendlyError = 'Falha de autenticação: usuário ou senha do e-mail incorretos. Em contas corporativas ou Gmail, utilize uma Senha de Aplicativo.';
+      friendlyError = 'Falha de autenticação: usuário ou senha incorretos. Dica: Se estiver usando @busato.com.br, utilize a sua senha normal do webmail corporativo KingHost. Se for Gmail (@gmail.com), ative a Verificação em Duas Etapas e gere uma Senha de App em myaccount.google.com/apppasswords.';
     } else if (
       rawMsg.includes('ECONNREFUSED') ||
       rawMsg.includes('ETIMEDOUT') ||

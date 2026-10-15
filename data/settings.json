@@ -1,9 +1,13 @@
 {
   "companyName": "BUSATO - Gestão e Monitoramento de Ocorrências",
   "notificationEmails": [
+    "busatosesmt@gmail.com",
     "sesmt@busato.com.br",
-    "alyson.oliveira@busatoloc.com.br"
+    "alyson.oliveira@busato.com.br"
   ],
+  "emailProvider": "resend",
+  "resendApiKey": "",
+  "emailFrom": "SESMT Busato <onboarding@resend.dev>",
   "autoNotifyOnCreate": true,
   "googleCalendarEnabled": true,
   "publicFormEnabled": true,

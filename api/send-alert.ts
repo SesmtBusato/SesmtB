@@ -26,6 +26,7 @@ export default async function handler(req: any, res: any) {
       event: body.event,
       oldStatus: body.oldStatus,
       recipients: body.recipients,
+      smtpConfig: body.smtpConfig,
     });
 
     return res.status(result.ok ? 200 : 502).json(result);

@@ -80,6 +80,15 @@ export interface AppSettings {
   notifyOnUpdate: boolean;
   googleCalendarEnabled: boolean;
   publicFormEnabled: boolean;
+  // Configuração do Servidor de Envio de E-mail (SMTP / Provedor)
+  emailProvider?: 'smtp' | 'resend' | 'none';
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  smtpUser?: string;
+  smtpPass?: string;
+  emailFrom?: string;
+  resendApiKey?: string;
   // Dynamic lists editable by user
   supervisors: string[];
   shifts: string[];

@@ -1,6 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { NotificationLog, AppSettings } from '../types';
-import { X, Mail, CheckCircle2, Plus, Trash2, Send, ShieldAlert, BellRing, Loader2, XCircle, Server } from 'lucide-react';
+import {
+  X,
+  Mail,
+  CheckCircle2,
+  Plus,
+  Trash2,
+  Send,
+  ShieldAlert,
+  BellRing,
+  Loader2,
+  XCircle,
+  Server,
+  Settings,
+  Eye,
+  EyeOff,
+  Save,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Sparkles
+} from 'lucide-react';
 import { api, EmailDispatchResult, EmailEngineStatus } from '../services/api';
 
 interface Props {
@@ -24,9 +44,73 @@ export const NotificationCenterModal: React.FC<Props> = ({
   const [testResult, setTestResult] = useState<EmailDispatchResult | null>(null);
   const [engine, setEngine] = useState<EmailEngineStatus | null | 'loading'>('loading');
 
+  // Estado do painel de configuração de envio
+  const [showConfig, setShowConfig] = useState<boolean>(false);
+  const [providerType, setProviderType] = useState<'office365' | 'gmail' | 'resend' | 'custom'>(() => {
+    if (settings.resendApiKey) return 'resend';
+    if (settings.smtpHost?.includes('office365') || settings.smtpHost?.includes('outlook')) return 'office365';
+    if (settings.smtpHost?.includes('gmail')) return 'gmail';
+    return 'custom';
+  });
+  const [smtpHost, setSmtpHost] = useState(settings.smtpHost || '');
+  const [smtpPort, setSmtpPort] = useState<number>(settings.smtpPort || 587);
+  const [smtpSecure, setSmtpSecure] = useState<boolean>(settings.smtpSecure || false);
+  const [smtpUser, setSmtpUser] = useState(settings.smtpUser || '');
+  const [smtpPass, setSmtpPass] = useState(settings.smtpPass || '');
+  const [emailFrom, setEmailFrom] = useState(settings.emailFrom || 'SESMT Busato <alertas@busato.com.br>');
+  const [resendApiKey, setResendApiKey] = useState(settings.resendApiKey || '');
+  const [showPassword, setShowPassword] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [configSavedSuccess, setConfigSavedSuccess] = useState(false);
+
   useEffect(() => {
-    api.getEmailStatus().then(setEngine);
-  }, []);
+    api.getEmailStatus(settings).then(setEngine);
+  }, [settings]);
+
+  const applyPreset = (preset: 'office365' | 'gmail' | 'resend' | 'custom') => {
+    setProviderType(preset);
+    if (preset === 'office365') {
+      setSmtpHost('smtp.office365.com');
+      setSmtpPort(587);
+      setSmtpSecure(false);
+      if (!emailFrom || emailFrom.includes('resend')) {
+        setEmailFrom('SESMT Busato <alyson.oliveira@busatoloc.com.br>');
+      }
+    } else if (preset === 'gmail') {
+      setSmtpHost('smtp.gmail.com');
+      setSmtpPort(465);
+      setSmtpSecure(true);
+    } else if (preset === 'resend') {
+      if (!emailFrom || emailFrom.includes('busato')) {
+        setEmailFrom('SESMT Busato <onboarding@resend.dev>');
+      }
+    }
+  };
+
+  const handleSaveEmailConfig = async () => {
+    setSavingConfig(true);
+    const updatedSettings: AppSettings = {
+      ...settings,
+      emailProvider: providerType === 'resend' ? 'resend' : 'smtp',
+      smtpHost: providerType === 'resend' ? '' : smtpHost.trim(),
+      smtpPort: Number(smtpPort) || 587,
+      smtpSecure: smtpSecure,
+      smtpUser: smtpUser.trim(),
+      smtpPass: smtpPass.trim(),
+      emailFrom: emailFrom.trim(),
+      resendApiKey: resendApiKey.trim(),
+    };
+
+    await api.saveSettings(updatedSettings);
+    onUpdateSettings(updatedSettings);
+
+    const newStatus = await api.getEmailStatus(updatedSettings);
+    setEngine(newStatus);
+
+    setSavingConfig(false);
+    setConfigSavedSuccess(true);
+    setTimeout(() => setConfigSavedSuccess(false), 3000);
+  };
 
   const handleAddEmail = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +132,20 @@ export const NotificationCenterModal: React.FC<Props> = ({
   const handleTestDispatch = async () => {
     setSending(true);
     setTestResult(null);
-    const result = await api.sendTestEmail(emails);
+
+    // Passa as credenciais atuais na chamada para testar imediatamente
+    const currentSmtpConfig = {
+      provider: providerType === 'resend' ? ('resend' as const) : ('smtp' as const),
+      host: smtpHost.trim(),
+      port: Number(smtpPort) || 587,
+      secure: smtpSecure,
+      user: smtpUser.trim(),
+      pass: smtpPass.trim(),
+      from: emailFrom.trim(),
+      resendApiKey: resendApiKey.trim(),
+    };
+
+    const result = await api.sendTestEmail(emails, currentSmtpConfig);
     setTestResult(result);
     setSending(false);
     onRefresh?.();
@@ -84,9 +181,9 @@ export const NotificationCenterModal: React.FC<Props> = ({
 
         {/* Content */}
         <div className="overflow-y-auto space-y-5 py-4 text-xs pr-1">
-          {/* Status do Motor de Disparo */}
+          {/* Status do Motor de Disparo + Botão de Configuração */}
           <div
-            className={`p-3.5 rounded-xl border flex items-start gap-3 ${
+            className={`p-4 rounded-xl border space-y-3 ${
               engine === 'loading'
                 ? 'bg-[#101726] border-[#1e2f4a]'
                 : engineReady
@@ -94,42 +191,271 @@ export const NotificationCenterModal: React.FC<Props> = ({
                   : 'bg-amber-500/5 border-amber-500/30'
             }`}
           >
-            <div
-              className={`p-2 rounded-lg shrink-0 ${
-                engineReady ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
-              }`}
-            >
-              {engine === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
-            </div>
-            <div className="space-y-0.5 min-w-0">
-              <span className="text-white font-semibold block">
-                Motor de Disparo:{' '}
-                {engine === 'loading'
-                  ? 'verificando...'
-                  : engineReady
-                    ? `Ativo via ${(engine as EmailEngineStatus).provider.toUpperCase()}`
-                    : engine === null
-                      ? 'Endpoint indisponível'
-                      : 'Não configurado'}
-              </span>
-              {engine !== 'loading' && engineReady && (
-                <span className="text-slate-400 text-[11px] block truncate">
-                  Servidor: <span className="font-mono text-slate-300">{(engine as EmailEngineStatus).host}</span>
-                  {(engine as EmailEngineStatus).from && (
-                    <>
-                      {' '}• Remetente: <span className="font-mono text-slate-300">{(engine as EmailEngineStatus).from}</span>
-                    </>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div
+                  className={`p-2 rounded-lg shrink-0 ${
+                    engineReady ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
+                  }`}
+                >
+                  {engine === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
+                </div>
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold block">
+                      Motor de Disparo:{' '}
+                      {engine === 'loading'
+                        ? 'verificando...'
+                        : engineReady
+                          ? `Ativo via ${(engine as EmailEngineStatus).provider.toUpperCase()}`
+                          : 'Pendente de Configuração'}
+                    </span>
+                    {engineReady && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-medium">
+                        <Check className="w-3 h-3" /> Conectado
+                      </span>
+                    )}
+                  </div>
+
+                  {engine !== 'loading' && engineReady && (
+                    <span className="text-slate-400 text-[11px] block truncate">
+                      Servidor: <span className="font-mono text-slate-300">{(engine as EmailEngineStatus).host}</span>
+                      {(engine as EmailEngineStatus).from && (
+                        <>
+                          {' '}• Remetente: <span className="font-mono text-slate-300">{(engine as EmailEngineStatus).from}</span>
+                        </>
+                      )}
+                    </span>
                   )}
-                </span>
-              )}
-              {engine !== 'loading' && !engineReady && (
-                <span className="text-amber-200/80 text-[11px] block leading-relaxed">
-                  Configure as variáveis de ambiente de um provedor SMTP (Outlook/Microsoft 365, Zoho, Hostinger,
-                  Locaweb, Brevo...) — <span className="font-mono">SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM</span>{' '}
-                  — ou do Resend (<span className="font-mono">RESEND_API_KEY</span>) no arquivo .env e na Vercel.
-                </span>
-              )}
+                  {engine !== 'loading' && !engineReady && (
+                    <span className="text-amber-200/90 text-[11px] block leading-relaxed">
+                      Configure os dados do seu e-mail corporativo (Microsoft 365 / Outlook, Gmail, Resend ou outro SMTP) abaixo para liberar os disparos.
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowConfig(!showConfig)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 border ${
+                  showConfig
+                    ? 'bg-[#1e73be] text-white border-[#38bdf8]/40 shadow-xs'
+                    : 'bg-[#152338] text-slate-200 hover:text-white border-[#273f63] hover:bg-[#1d314e]'
+                }`}
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>{showConfig ? 'Ocultar Configuração' : 'Configurar E-mail / SMTP'}</span>
+                {showConfig ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
             </div>
+
+            {/* Painel Expansível de Configuração do Servidor */}
+            {showConfig && (
+              <div className="pt-3 border-t border-[#1e2f4a] space-y-4">
+                {/* Presets Rápidos */}
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block mb-1.5 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    Escolha o tipo de servidor ou provedor:
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => applyPreset('office365')}
+                      className={`p-2 rounded-lg border text-left transition cursor-pointer ${
+                        providerType === 'office365'
+                          ? 'bg-[#1e73be]/20 border-[#38bdf8] text-white'
+                          : 'bg-[#101726] border-[#1e2f4a] text-slate-300 hover:bg-[#142036]'
+                      }`}
+                    >
+                      <strong className="block text-[11px]">🏢 Microsoft 365</strong>
+                      <span className="text-[10px] text-slate-400 block truncate">Outlook Corporativo</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => applyPreset('gmail')}
+                      className={`p-2 rounded-lg border text-left transition cursor-pointer ${
+                        providerType === 'gmail'
+                          ? 'bg-[#1e73be]/20 border-[#38bdf8] text-white'
+                          : 'bg-[#101726] border-[#1e2f4a] text-slate-300 hover:bg-[#142036]'
+                      }`}
+                    >
+                      <strong className="block text-[11px]">📧 Gmail</strong>
+                      <span className="text-[10px] text-slate-400 block truncate">Senha de App</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => applyPreset('resend')}
+                      className={`p-2 rounded-lg border text-left transition cursor-pointer ${
+                        providerType === 'resend'
+                          ? 'bg-[#1e73be]/20 border-[#38bdf8] text-white'
+                          : 'bg-[#101726] border-[#1e2f4a] text-slate-300 hover:bg-[#142036]'
+                      }`}
+                    >
+                      <strong className="block text-[11px]">⚡ Resend</strong>
+                      <span className="text-[10px] text-slate-400 block truncate">API Key (Nuvem)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => applyPreset('custom')}
+                      className={`p-2 rounded-lg border text-left transition cursor-pointer ${
+                        providerType === 'custom'
+                          ? 'bg-[#1e73be]/20 border-[#38bdf8] text-white'
+                          : 'bg-[#101726] border-[#1e2f4a] text-slate-300 hover:bg-[#142036]'
+                      }`}
+                    >
+                      <strong className="block text-[11px]">🌐 Outro SMTP</strong>
+                      <span className="text-[10px] text-slate-400 block truncate">Zoho, Hostinger...</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Formulário de Campos */}
+                {providerType === 'resend' ? (
+                  <div className="space-y-3 p-3 bg-[#0d1422] rounded-xl border border-[#1e2f4a]">
+                    <div>
+                      <label className="block text-[11px] text-slate-300 font-medium mb-1">
+                        Chave de API do Resend (API Key):
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="re_1234567890abcdef..."
+                        value={resendApiKey}
+                        onChange={(e) => setResendApiKey(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white font-mono text-xs focus:outline-hidden focus:border-[#38bdf8]"
+                      />
+                      <span className="text-[10px] text-slate-400 block mt-1">
+                        Obtenha sua chave gratuita em <a href="https://resend.com" target="_blank" rel="noreferrer" className="text-sky-400 underline">resend.com</a>.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] text-slate-300 font-medium mb-1">
+                        Remetente Exibido (From):
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="SESMT Busato <onboarding@resend.dev>"
+                        value={emailFrom}
+                        onChange={(e) => setEmailFrom(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white text-xs focus:outline-hidden focus:border-[#38bdf8]"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 p-3 bg-[#0d1422] rounded-xl border border-[#1e2f4a]">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] text-slate-300 font-medium mb-1">
+                          Servidor SMTP (Host):
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="ex: smtp.office365.com ou smtp.gmail.com"
+                          value={smtpHost}
+                          onChange={(e) => setSmtpHost(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white font-mono text-xs focus:outline-hidden focus:border-[#38bdf8]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] text-slate-300 font-medium mb-1">
+                          Porta:
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="587 ou 465"
+                          value={smtpPort}
+                          onChange={(e) => setSmtpPort(Number(e.target.value))}
+                          className="w-full px-3 py-1.5 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white font-mono text-xs focus:outline-hidden focus:border-[#38bdf8]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] text-slate-300 font-medium mb-1">
+                          E-mail / Usuário SMTP:
+                        </label>
+                        <input
+                          type="email"
+                          placeholder="seu.email@busatoloc.com.br"
+                          value={smtpUser}
+                          onChange={(e) => setSmtpUser(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white text-xs focus:outline-hidden focus:border-[#38bdf8]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] text-slate-300 font-medium mb-1">
+                          Senha / Senha de Aplicativo:
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder="Sua senha ou senha de app"
+                            value={smtpPass}
+                            onChange={(e) => setSmtpPass(e.target.value)}
+                            className="w-full px-3 py-1.5 pr-8 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white text-xs focus:outline-hidden focus:border-[#38bdf8]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                            title={showPassword ? 'Ocultar senha' : 'Ver senha'}
+                          >
+                            {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] text-slate-300 font-medium mb-1">
+                        Nome e E-mail de Exibição (Remetente):
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="SESMT Busato <alyson.oliveira@busatoloc.com.br>"
+                        value={emailFrom}
+                        onChange={(e) => setEmailFrom(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-[#101726] border border-[#1e2f4a] rounded-lg text-white text-xs focus:outline-hidden focus:border-[#38bdf8]"
+                      />
+                      <span className="text-[10px] text-slate-400 block mt-1">
+                        Dica: contas do Microsoft 365 e Google exigem que o remetente seja o mesmo do usuário autenticado.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Botão de Salvar e Feedback */}
+                <div className="flex items-center justify-between pt-1">
+                  {configSavedSuccess ? (
+                    <span className="text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4" /> Configurações de e-mail salvas com sucesso!
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 text-[11px]">
+                      Clique em salvar para aplicar os dados ao motor de envio.
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleSaveEmailConfig}
+                    disabled={savingConfig}
+                    className="busato-gradient-btn flex items-center gap-1.5 px-4 py-2 text-white rounded-lg font-bold text-xs cursor-pointer disabled:opacity-60"
+                  >
+                    {savingConfig ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    <span>{savingConfig ? 'Salvando...' : 'Salvar Configuração'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* E-mails Cadastrados */}

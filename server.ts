@@ -347,19 +347,41 @@ app.get('/api/notifications', async (_req: Request, res: Response) => {
 
 // Motor real de disparo de e-mails (mesmo handler usado na Vercel em api/send-alert.ts)
 app.get('/api/send-alert', (_req: Request, res: Response) => {
-  res.json(getEmailStatus());
+  const localSettings = readJsonFile<any>(SETTINGS_FILE, DEFAULT_SETTINGS);
+  const override = {
+    provider: localSettings.emailProvider,
+    host: localSettings.smtpHost,
+    port: localSettings.smtpPort,
+    secure: localSettings.smtpSecure,
+    user: localSettings.smtpUser,
+    from: localSettings.emailFrom,
+    resendApiKey: localSettings.resendApiKey,
+  };
+  res.json(getEmailStatus(override));
 });
 
 app.post('/api/send-alert', async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
     const type: AlertType = ['create', 'update', 'test'].includes(body.type) ? body.type : 'create';
+    const localSettings = readJsonFile<any>(SETTINGS_FILE, DEFAULT_SETTINGS);
+    const smtpConfig = body.smtpConfig || {
+      provider: localSettings.emailProvider,
+      host: localSettings.smtpHost,
+      port: localSettings.smtpPort,
+      secure: localSettings.smtpSecure,
+      user: localSettings.smtpUser,
+      pass: localSettings.smtpPass,
+      from: localSettings.emailFrom,
+      resendApiKey: localSettings.resendApiKey,
+    };
     const result = await dispatchAlert({
       type,
       eventId: body.eventId,
       event: body.event,
       oldStatus: body.oldStatus,
-      recipients: body.recipients
+      recipients: body.recipients,
+      smtpConfig,
     });
     res.status(result.ok ? 200 : 502).json(result);
   } catch (err: any) {

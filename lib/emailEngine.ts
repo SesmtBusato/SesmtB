@@ -27,12 +27,24 @@ export interface SendResult {
   error?: string;
 }
 
+export interface SmtpConfigInput {
+  provider?: EmailProvider;
+  host?: string;
+  port?: number | string;
+  secure?: boolean;
+  user?: string;
+  pass?: string;
+  from?: string;
+  resendApiKey?: string;
+}
+
 export interface DispatchInput {
   type: AlertType;
   eventId?: string;
   event?: Record<string, any>;
   oldStatus?: string;
   recipients?: string[];
+  smtpConfig?: SmtpConfigInput;
 }
 
 export interface DispatchResult extends SendResult {
@@ -46,7 +58,11 @@ const env = (k: string) => (process.env[k] || '').trim();
 // ---------------------------------------------------------------------------
 // Configuração / Provedor
 // ---------------------------------------------------------------------------
-export function getProvider(): EmailProvider {
+export function getProvider(override?: SmtpConfigInput): EmailProvider {
+  if (override) {
+    if (override.provider === 'resend' || override.resendApiKey) return 'resend';
+    if (override.provider === 'smtp' || override.host) return 'smtp';
+  }
   const forced = env('EMAIL_PROVIDER').toLowerCase();
   if (forced === 'smtp' && env('SMTP_HOST')) return 'smtp';
   if (forced === 'resend' && env('RESEND_API_KEY')) return 'resend';
@@ -55,22 +71,40 @@ export function getProvider(): EmailProvider {
   return 'none';
 }
 
-export function getEmailStatus() {
-  const provider = getProvider();
+export function getEmailStatus(override?: SmtpConfigInput) {
+  const provider = getProvider(override);
+  const host = override?.host || (provider === 'smtp' ? env('SMTP_HOST') : provider === 'resend' ? 'api.resend.com' : null);
+  const from = override?.from || override?.user || env('EMAIL_FROM') || env('SMTP_USER') || null;
   return {
     provider,
     configured: provider !== 'none',
-    from: env('EMAIL_FROM') || env('SMTP_USER') || null,
-    host: provider === 'smtp' ? env('SMTP_HOST') : provider === 'resend' ? 'api.resend.com' : null,
+    from,
+    host,
   };
 }
 
-function getFrom(): string {
+function getFrom(override?: SmtpConfigInput): string {
+  if (override?.from && override.from.trim()) return override.from.trim();
+  if (override?.user && override.user.trim()) return `SESMT Busato <${override.user.trim()}>`;
   return env('EMAIL_FROM') || (env('SMTP_USER') ? `SESMT Busato <${env('SMTP_USER')}>` : 'SESMT Busato <onboarding@resend.dev>');
 }
 
 let cachedTransport: ReturnType<typeof nodemailer.createTransport> | null = null;
-function getSmtpTransport() {
+function getSmtpTransport(override?: SmtpConfigInput) {
+  if (override && override.host) {
+    const port = Number(override.port || 587);
+    const secure = override.secure !== undefined ? override.secure : port === 465;
+    return nodemailer.createTransport({
+      host: override.host.trim(),
+      port,
+      secure,
+      auth: override.user ? { user: override.user.trim(), pass: override.pass || '' } : undefined,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+    });
+  }
+
   if (cachedTransport) return cachedTransport;
   const port = Number(env('SMTP_PORT') || 587);
   const secure = env('SMTP_SECURE') ? env('SMTP_SECURE') === 'true' : port === 465;
@@ -89,36 +123,43 @@ function getSmtpTransport() {
 // ---------------------------------------------------------------------------
 // Envio genérico
 // ---------------------------------------------------------------------------
-export async function sendEmail(opts: { to: string[]; subject: string; html: string; text: string }): Promise<SendResult> {
-  const provider = getProvider();
+export async function sendEmail(
+  opts: { to: string[]; subject: string; html: string; text: string },
+  override?: SmtpConfigInput
+): Promise<SendResult> {
+  const provider = getProvider(override);
   if (provider === 'none') {
     return {
       ok: false,
       provider,
-      error: 'Nenhum provedor de e-mail configurado. Defina SMTP_HOST/SMTP_USER/SMTP_PASS ou RESEND_API_KEY.',
+      error: 'Nenhum servidor de e-mail configurado. Clique em "Configurar Servidor de Envio" e preencha os dados de SMTP ou API Key.',
     };
   }
   if (opts.to.length === 0) {
-    return { ok: false, provider, error: 'Nenhum destinatário válido.' };
+    return { ok: false, provider, error: 'Nenhum destinatário cadastrado para envio.' };
   }
+
+  const fromAddress = getFrom(override);
+  const resendKey = override?.resendApiKey || env('RESEND_API_KEY');
 
   try {
     if (provider === 'resend') {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env('RESEND_API_KEY')}`,
+          Authorization: `Bearer ${resendKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ from: getFrom(), to: opts.to, subject: opts.subject, html: opts.html, text: opts.text }),
+        body: JSON.stringify({ from: fromAddress, to: opts.to, subject: opts.subject, html: opts.html, text: opts.text }),
       });
       const body: any = await res.json().catch(() => ({}));
       if (!res.ok) return { ok: false, provider, error: body?.message || `Resend HTTP ${res.status}` };
       return { ok: true, provider, messageId: body?.id };
     }
 
-    const info = await getSmtpTransport().sendMail({
-      from: getFrom(),
+    const transport = getSmtpTransport(override);
+    const info = await transport.sendMail({
+      from: fromAddress,
       to: opts.to.join(', '),
       subject: opts.subject,
       html: opts.html,
@@ -126,7 +167,14 @@ export async function sendEmail(opts: { to: string[]; subject: string; html: str
     });
     return { ok: true, provider, messageId: info.messageId };
   } catch (err: any) {
-    return { ok: false, provider, error: err?.message || String(err) };
+    const rawMsg = err?.message || String(err);
+    let friendlyError = rawMsg;
+    if (rawMsg.includes('EAUTH') || rawMsg.includes('Invalid login') || rawMsg.includes('authentication failed')) {
+      friendlyError = 'Falha de autenticação: usuário ou senha do e-mail incorretos. Em contas corporativas ou Gmail, utilize uma Senha de Aplicativo.';
+    } else if (rawMsg.includes('ECONNREFUSED') || rawMsg.includes('ETIMEDOUT') || rawMsg.includes('ENOTFOUND')) {
+      friendlyError = `Não foi possível conectar ao servidor SMTP (${override?.host || env('SMTP_HOST')}:${override?.port || env('SMTP_PORT')}). Verifique o endereço e a porta.`;
+    }
+    return { ok: false, provider, error: friendlyError };
   }
 }
 
@@ -212,7 +260,7 @@ const SEVERITY_COLOR: Record<string, string> = {
   Crítico: '#ef4444',
 };
 
-export function buildAlertEmail(type: AlertType, ev: Record<string, any>, oldStatus?: string) {
+export function buildAlertEmail(type: AlertType, ev: Record<string, any>, oldStatus?: string, override?: SmtpConfigInput) {
   const appUrl = env('APP_URL') || 'https://sesmt-b.vercel.app';
   const item = ev.item ?? '—';
 
@@ -237,7 +285,7 @@ export function buildAlertEmail(type: AlertType, ev: Record<string, any>, oldSta
   const rows: [string, unknown][] =
     type === 'test'
       ? [
-          ['Provedor', getProvider().toUpperCase()],
+          ['Provedor', getProvider(override).toUpperCase()],
           ['Data/Hora', new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })],
         ]
       : [
@@ -320,8 +368,8 @@ export async function dispatchAlert(input: DispatchInput): Promise<DispatchResul
   }
 
   const recipients = await resolveRecipients(input.recipients);
-  const { subject, html, text } = buildAlertEmail(input.type, ev, input.oldStatus);
-  const result = await sendEmail({ to: recipients, subject, html, text });
+  const { subject, html, text } = buildAlertEmail(input.type, ev, input.oldStatus, input.smtpConfig);
+  const result = await sendEmail({ to: recipients, subject, html, text }, input.smtpConfig);
 
   // Registro do log de disparo (com status real)
   const notificationId = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;

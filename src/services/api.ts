@@ -20,28 +20,42 @@ export interface EmailEngineStatus {
   host: string | null;
 }
 
-function getLocalSettingsFlags(): { autoNotifyOnCreate: boolean; notifyOnUpdate: boolean; notificationEmails?: string[] } {
+export function getLocalFullSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(LOCAL_SETTINGS_KEY);
-    if (raw) {
-      const p = JSON.parse(raw);
-      return {
-        autoNotifyOnCreate: p.autoNotifyOnCreate ?? true,
-        notifyOnUpdate: p.notifyOnUpdate ?? true,
-        notificationEmails: p.notificationEmails
-      };
-    }
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
   } catch {}
-  return { autoNotifyOnCreate: true, notifyOnUpdate: true };
+  return DEFAULT_SETTINGS;
+}
+
+function getLocalSettingsFlags(): { autoNotifyOnCreate: boolean; notifyOnUpdate: boolean; notificationEmails?: string[] } {
+  const s = getLocalFullSettings();
+  return {
+    autoNotifyOnCreate: s.autoNotifyOnCreate ?? true,
+    notifyOnUpdate: s.notifyOnUpdate ?? true,
+    notificationEmails: s.notificationEmails
+  };
 }
 
 /** Chama o motor real de e-mails (Express local ou Vercel Function). */
 async function postAlert(payload: Record<string, unknown>): Promise<EmailDispatchResult> {
+  const currentSettings = getLocalFullSettings();
+  const smtpConfig = (payload.smtpConfig as any) || {
+    provider: currentSettings.emailProvider,
+    host: currentSettings.smtpHost,
+    port: currentSettings.smtpPort,
+    secure: currentSettings.smtpSecure,
+    user: currentSettings.smtpUser,
+    pass: currentSettings.smtpPass,
+    from: currentSettings.emailFrom,
+    resendApiKey: currentSettings.resendApiKey,
+  };
+
   try {
     const res = await fetch('/api/send-alert', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ ...payload, smtpConfig })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok && !data?.error) {
@@ -363,8 +377,12 @@ export const api = {
   },
 
   /** Dispara um e-mail de teste real para os destinatários cadastrados. */
-  async sendTestEmail(recipients?: string[]): Promise<EmailDispatchResult> {
-    return postAlert({ type: 'test', recipients: recipients || getLocalSettingsFlags().notificationEmails });
+  async sendTestEmail(recipients?: string[], smtpConfigOverride?: any): Promise<EmailDispatchResult> {
+    return postAlert({
+      type: 'test',
+      recipients: recipients || getLocalSettingsFlags().notificationEmails,
+      smtpConfig: smtpConfigOverride
+    });
   },
 
   /** Reenvia manualmente o alerta de uma ocorrência. */
@@ -372,7 +390,24 @@ export const api = {
     return postAlert({ type: 'create', eventId: event.id, event });
   },
 
-  async getEmailStatus(): Promise<EmailEngineStatus | null> {
+  async getEmailStatus(overrideSettings?: Partial<AppSettings>): Promise<EmailEngineStatus | null> {
+    const s = overrideSettings || getLocalFullSettings();
+    if (s.smtpHost && (s.smtpUser || s.smtpPort)) {
+      return {
+        provider: 'smtp',
+        configured: Boolean(s.smtpHost && s.smtpUser),
+        from: s.emailFrom || s.smtpUser || null,
+        host: s.smtpHost
+      };
+    }
+    if (s.resendApiKey) {
+      return {
+        provider: 'resend',
+        configured: Boolean(s.resendApiKey),
+        from: s.emailFrom || null,
+        host: 'api.resend.com'
+      };
+    }
     try {
       const res = await fetch('/api/send-alert');
       if (res.ok) {

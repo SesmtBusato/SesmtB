@@ -69,7 +69,7 @@ export interface NotificationLog {
   recipients: string[];
   subject: string;
   timestamp: string;
-  status: 'Entregue' | 'Simulado';
+  status: 'Entregue' | 'Falha' | 'Simulado';
   previewText: string;
 }
 

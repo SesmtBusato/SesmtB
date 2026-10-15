@@ -5,6 +5,54 @@ const LOCAL_STORAGE_KEY = 'safetrack_events_db_v1';
 const LOCAL_NOTIFS_KEY = 'safetrack_notifications_v1';
 const LOCAL_SETTINGS_KEY = 'safetrack_settings_v1';
 
+export interface EmailDispatchResult {
+  ok: boolean;
+  provider?: 'smtp' | 'resend' | 'none';
+  recipients?: string[];
+  subject?: string;
+  error?: string;
+}
+
+export interface EmailEngineStatus {
+  provider: 'smtp' | 'resend' | 'none';
+  configured: boolean;
+  from: string | null;
+  host: string | null;
+}
+
+function getLocalSettingsFlags(): { autoNotifyOnCreate: boolean; notifyOnUpdate: boolean; notificationEmails?: string[] } {
+  try {
+    const raw = localStorage.getItem(LOCAL_SETTINGS_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      return {
+        autoNotifyOnCreate: p.autoNotifyOnCreate ?? true,
+        notifyOnUpdate: p.notifyOnUpdate ?? true,
+        notificationEmails: p.notificationEmails
+      };
+    }
+  } catch {}
+  return { autoNotifyOnCreate: true, notifyOnUpdate: true };
+}
+
+/** Chama o motor real de e-mails (Express local ou Vercel Function). */
+async function postAlert(payload: Record<string, unknown>): Promise<EmailDispatchResult> {
+  try {
+    const res = await fetch('/api/send-alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok && !data?.error) {
+      return { ok: false, error: `Motor de e-mail indisponível (HTTP ${res.status}).` };
+    }
+    return data as EmailDispatchResult;
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Falha de rede ao acionar o motor de e-mail.' };
+  }
+}
+
 export const DEFAULT_SETTINGS: AppSettings = {
   companyName: 'BUSATO - Gestão e Monitoramento de Ocorrências',
   notificationEmails: [
@@ -221,11 +269,14 @@ export const api = {
       prazoAnalise: eventData.prazoAnalise || '',
       status: eventData.status || 'Pendente',
       observacao: eventData.observacao || '',
-      notificadoEmail: true,
-      emailsNotificados: ['alysonmish@gmail.com'],
+      notificadoEmail: false,
+      emailsNotificados: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+
+    let saved: EventRecord = fullEvent;
+    let persisted = false;
 
     // 1. Backend /api/events se disponível
     try {
@@ -235,15 +286,13 @@ export const api = {
         body: JSON.stringify(fullEvent)
       });
       if (res.ok) {
-        const serverEvent = await res.json();
-        const updated = [serverEvent, ...localList.filter((e) => e.id !== serverEvent.id)];
-        saveLocalEvents(updated);
-        return serverEvent;
+        saved = await res.json();
+        persisted = true;
       }
     } catch {}
 
     // 2. Supabase direto (produção Vercel)
-    if (supabase) {
+    if (!persisted && supabase) {
       try {
         await supabase.from('events').insert(mapAppEventToDb(fullEvent));
       } catch (e) {
@@ -251,15 +300,27 @@ export const api = {
       }
     }
 
-    const updated = [fullEvent, ...localList];
+    // 3. Disparo real do alerta por e-mail
+    const flags = getLocalSettingsFlags();
+    if (flags.autoNotifyOnCreate) {
+      const result = await postAlert({ type: 'create', eventId: saved.id, event: saved });
+      if (result.ok) {
+        saved = { ...saved, notificadoEmail: true, emailsNotificados: result.recipients || [] };
+      } else {
+        console.warn('Falha no disparo do alerta por e-mail:', result.error);
+      }
+    }
+
+    const updated = [saved, ...localList.filter((e) => e.id !== saved.id)];
     saveLocalEvents(updated);
 
-    return fullEvent;
+    return saved;
   },
 
   async updateEvent(id: string, updates: Partial<EventRecord>): Promise<EventRecord> {
     const localList = getLocalEvents();
     const index = localList.findIndex((e) => e.id === id);
+    const oldStatus = index !== -1 ? localList[index].status : undefined;
 
     let merged: EventRecord;
     if (index !== -1) {
@@ -270,6 +331,8 @@ export const api = {
       merged = updates as EventRecord;
     }
 
+    let result: EventRecord = merged;
+    let persisted = false;
     try {
       const res = await fetch(`/api/events/${id}`, {
         method: 'PUT',
@@ -277,12 +340,12 @@ export const api = {
         body: JSON.stringify(updates)
       });
       if (res.ok) {
-        const serverUpdated = await res.json();
-        return serverUpdated;
+        result = await res.json();
+        persisted = true;
       }
     } catch {}
 
-    if (supabase) {
+    if (!persisted && supabase) {
       try {
         await supabase.from('events').update(mapAppEventToDb(merged)).eq('id', id);
       } catch (e) {
@@ -290,7 +353,34 @@ export const api = {
       }
     }
 
-    return merged;
+    // Alerta de mudança de status
+    if (updates.status && oldStatus && updates.status !== oldStatus && getLocalSettingsFlags().notifyOnUpdate) {
+      const r = await postAlert({ type: 'update', eventId: id, event: result, oldStatus });
+      if (!r.ok) console.warn('Falha no alerta de atualização:', r.error);
+    }
+
+    return result;
+  },
+
+  /** Dispara um e-mail de teste real para os destinatários cadastrados. */
+  async sendTestEmail(recipients?: string[]): Promise<EmailDispatchResult> {
+    return postAlert({ type: 'test', recipients: recipients || getLocalSettingsFlags().notificationEmails });
+  },
+
+  /** Reenvia manualmente o alerta de uma ocorrência. */
+  async resendEventAlert(event: EventRecord): Promise<EmailDispatchResult> {
+    return postAlert({ type: 'create', eventId: event.id, event });
+  },
+
+  async getEmailStatus(): Promise<EmailEngineStatus | null> {
+    try {
+      const res = await fetch('/api/send-alert');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data.provider === 'string') return data;
+      }
+    } catch {}
+    return null;
   },
 
   async deleteEvent(id: string): Promise<boolean> {

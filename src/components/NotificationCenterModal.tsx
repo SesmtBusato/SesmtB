@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NotificationLog, AppSettings } from '../types';
-import { X, Mail, CheckCircle2, Plus, Trash2, Send, ShieldAlert, BellRing } from 'lucide-react';
+import { X, Mail, CheckCircle2, Plus, Trash2, Send, ShieldAlert, BellRing, Loader2, XCircle, Server } from 'lucide-react';
+import { api, EmailDispatchResult, EmailEngineStatus } from '../services/api';
 
 interface Props {
   notifications: NotificationLog[];
   settings: AppSettings;
   onClose: () => void;
   onUpdateSettings: (newSettings: AppSettings) => void;
+  onRefresh?: () => void;
 }
 
 export const NotificationCenterModal: React.FC<Props> = ({
@@ -14,10 +16,17 @@ export const NotificationCenterModal: React.FC<Props> = ({
   settings,
   onClose,
   onUpdateSettings,
+  onRefresh,
 }) => {
-  const [emails, setEmails] = useState<string[]>(settings.notificationEmails || ['alysonmish@gmail.com']);
+  const [emails, setEmails] = useState<string[]>(settings.notificationEmails || []);
   const [newEmailInput, setNewEmailInput] = useState<string>('');
-  const [testSent, setTestSent] = useState<boolean>(false);
+  const [sending, setSending] = useState<boolean>(false);
+  const [testResult, setTestResult] = useState<EmailDispatchResult | null>(null);
+  const [engine, setEngine] = useState<EmailEngineStatus | null | 'loading'>('loading');
+
+  useEffect(() => {
+    api.getEmailStatus().then(setEngine);
+  }, []);
 
   const handleAddEmail = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,10 +45,16 @@ export const NotificationCenterModal: React.FC<Props> = ({
     onUpdateSettings({ ...settings, notificationEmails: updated });
   };
 
-  const handleSimulateTestDispatch = () => {
-    setTestSent(true);
-    setTimeout(() => setTestSent(false), 3000);
+  const handleTestDispatch = async () => {
+    setSending(true);
+    setTestResult(null);
+    const result = await api.sendTestEmail(emails);
+    setTestResult(result);
+    setSending(false);
+    onRefresh?.();
   };
+
+  const engineReady = engine !== 'loading' && engine?.configured;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto">
@@ -69,9 +84,57 @@ export const NotificationCenterModal: React.FC<Props> = ({
 
         {/* Content */}
         <div className="overflow-y-auto space-y-5 py-4 text-xs pr-1">
+          {/* Status do Motor de Disparo */}
+          <div
+            className={`p-3.5 rounded-xl border flex items-start gap-3 ${
+              engine === 'loading'
+                ? 'bg-[#101726] border-[#1e2f4a]'
+                : engineReady
+                  ? 'bg-emerald-500/5 border-emerald-500/30'
+                  : 'bg-amber-500/5 border-amber-500/30'
+            }`}
+          >
+            <div
+              className={`p-2 rounded-lg shrink-0 ${
+                engineReady ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
+              }`}
+            >
+              {engine === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
+            </div>
+            <div className="space-y-0.5 min-w-0">
+              <span className="text-white font-semibold block">
+                Motor de Disparo:{' '}
+                {engine === 'loading'
+                  ? 'verificando...'
+                  : engineReady
+                    ? `Ativo via ${(engine as EmailEngineStatus).provider.toUpperCase()}`
+                    : engine === null
+                      ? 'Endpoint indisponível'
+                      : 'Não configurado'}
+              </span>
+              {engine !== 'loading' && engineReady && (
+                <span className="text-slate-400 text-[11px] block truncate">
+                  Servidor: <span className="font-mono text-slate-300">{(engine as EmailEngineStatus).host}</span>
+                  {(engine as EmailEngineStatus).from && (
+                    <>
+                      {' '}• Remetente: <span className="font-mono text-slate-300">{(engine as EmailEngineStatus).from}</span>
+                    </>
+                  )}
+                </span>
+              )}
+              {engine !== 'loading' && !engineReady && (
+                <span className="text-amber-200/80 text-[11px] block leading-relaxed">
+                  Configure as variáveis de ambiente de um provedor SMTP (Outlook/Microsoft 365, Zoho, Hostinger,
+                  Locaweb, Brevo...) — <span className="font-mono">SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM</span>{' '}
+                  — ou do Resend (<span className="font-mono">RESEND_API_KEY</span>) no arquivo .env e na Vercel.
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* E-mails Cadastrados */}
           <div className="p-4 bg-[#101726] rounded-xl border border-[#1e2f4a] space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <span className="text-white font-semibold block">Destinatários de Alerta SESMT</span>
                 <span className="text-slate-400 text-[11px]">
@@ -79,18 +142,29 @@ export const NotificationCenterModal: React.FC<Props> = ({
                 </span>
               </div>
               <button
-                onClick={handleSimulateTestDispatch}
-                className="busato-gradient-btn flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg font-bold transition cursor-pointer text-[11px]"
+                onClick={handleTestDispatch}
+                disabled={sending || emails.length === 0}
+                className="busato-gradient-btn flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg font-bold transition cursor-pointer text-[11px] shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <Send className="w-3 h-3" />
-                <span>Testar Disparo</span>
+                {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                <span>{sending ? 'Enviando...' : 'Testar Disparo'}</span>
               </button>
             </div>
 
-            {testSent && (
+            {testResult && testResult.ok && (
               <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>E-mail de teste disparado com sucesso para todos os destinatários!</span>
+                <span>
+                  E-mail de teste enviado via {testResult.provider?.toUpperCase()} para{' '}
+                  {testResult.recipients?.join(', ')}. Verifique a caixa de entrada (e o spam).
+                </span>
+              </div>
+            )}
+
+            {testResult && !testResult.ok && (
+              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
+                <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="break-words">Falha no disparo: {testResult.error}</span>
               </div>
             )}
 
@@ -146,22 +220,30 @@ export const NotificationCenterModal: React.FC<Props> = ({
                     className="p-3 bg-slate-800/50 rounded-xl border border-slate-800 space-y-1 hover:border-slate-700 transition"
                   >
                     <div className="flex items-center justify-between text-[11px]">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 font-mono font-bold">
-                          #{n.item}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 font-mono font-bold shrink-0">
+                          {n.item ? `#${n.item}` : 'TESTE'}
                         </span>
-                        <span className="font-medium text-slate-200">{n.subject}</span>
+                        <span className="font-medium text-slate-200 truncate">{n.subject}</span>
                       </div>
-                      <span className="text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Entregue
-                      </span>
+                      {n.status === 'Falha' ? (
+                        <span className="text-rose-400 flex items-center gap-1 shrink-0">
+                          <XCircle className="w-3 h-3" /> Falha
+                        </span>
+                      ) : (
+                        <span className="text-emerald-400 flex items-center gap-1 shrink-0">
+                          <CheckCircle2 className="w-3 h-3" /> Entregue
+                        </span>
+                      )}
                     </div>
 
-                    <p className="text-slate-400 text-[11px] line-clamp-1">{n.previewText}</p>
+                    <p className={`text-[11px] line-clamp-2 ${n.status === 'Falha' ? 'text-rose-300/80' : 'text-slate-400'}`}>
+                      {n.previewText}
+                    </p>
 
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
-                      <span>Destinatários: {n.recipients?.join(', ') || 'alysonmish@gmail.com'}</span>
-                      <span>{new Date(n.timestamp).toLocaleString('pt-BR')}</span>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 gap-2">
+                      <span className="truncate">Destinatários: {n.recipients?.join(', ') || '—'}</span>
+                      <span className="shrink-0">{new Date(n.timestamp).toLocaleString('pt-BR')}</span>
                     </div>
                   </div>
                 ))

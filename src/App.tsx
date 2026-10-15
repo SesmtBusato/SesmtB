@@ -125,7 +125,11 @@ export default function App() {
   // Event handlers
   const handleEventCreated = (newEvent: EventRecord) => {
     setEvents((prev) => [newEvent, ...prev]);
-    showToast(`Ocorrência #${newEvent.item} registrada com sucesso! E-mail enviado.`);
+    showToast(
+      newEvent.notificadoEmail
+        ? `Ocorrência #${newEvent.item} registrada com sucesso! Alerta enviado por e-mail.`
+        : `Ocorrência #${newEvent.item} registrada. (Alerta por e-mail não enviado — verifique a Central de Notificações.)`
+    );
     loadData();
   };
 
@@ -522,6 +526,7 @@ export default function App() {
           notifications={notifications}
           settings={settings}
           onClose={() => setShowNotificationModal(false)}
+          onRefresh={loadData}
           onUpdateSettings={async (newSettings) => {
             const saved = await api.saveSettings(newSettings);
             setSettings(saved);

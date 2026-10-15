@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import { dispatchAlert, getEmailStatus, AlertType } from './lib/emailEngine.js';
 
 dotenv.config();
 
@@ -235,46 +236,8 @@ app.post('/api/events', async (req: Request, res: Response) => {
     newEvent.createdAt = new Date().toISOString();
     newEvent.updatedAt = new Date().toISOString();
 
-    const settings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
-    if (settings.autoNotifyOnCreate) {
-      const notifications = readJsonFile<any[]>(NOTIFICATIONS_FILE, []);
-      const notif = {
-        id: `notif-${Date.now()}`,
-        eventId: newEvent.id,
-        item: newEvent.item,
-        envolvido: newEvent.envolvido || 'Não informado',
-        encarregado: newEvent.encarregado || 'Não informado',
-        area: newEvent.area || 'Geral',
-        recipients: settings.notificationEmails,
-        subject: `[Alerta Ocorrência #${newEvent.item}] ${newEvent.area || 'Operação'} - ${newEvent.tipoOcorrencia || 'Novo Registro'}`,
-        timestamp: new Date().toISOString(),
-        status: 'Entregue',
-        previewText: `${newEvent.descricao?.substring(0, 140)}... (Responsável: ${newEvent.encarregado || 'N/A'})`
-      };
-      notifications.unshift(notif);
-      writeJsonFile(NOTIFICATIONS_FILE, notifications.slice(0, 100));
-      newEvent.notificadoEmail = true;
-      newEvent.emailsNotificados = settings.notificationEmails;
-
-      if (supabase) {
-        try {
-          await supabase.from('notifications').insert({
-            id: notif.id,
-            event_id: notif.eventId,
-            item: notif.item,
-            envolvido: notif.envolvido,
-            encarregado: notif.encarregado,
-            area: notif.area,
-            recipients: notif.recipients,
-            subject: notif.subject,
-            status: notif.status,
-            preview_text: notif.previewText
-          });
-        } catch (e) {
-          console.warn('Failed to insert notification into Supabase:', e);
-        }
-      }
-    }
+    // Disparo de e-mail é feito pelo motor real em /api/send-alert (acionado pelo frontend)
+    newEvent.notificadoEmail = newEvent.notificadoEmail || false;
 
     if (supabase) {
       try {
@@ -308,50 +271,11 @@ app.put('/api/events/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Evento não encontrado' });
     }
 
-    const oldStatus = events[index].status;
     const updatedEvent = {
       ...events[index],
       ...req.body,
       updatedAt: new Date().toISOString()
     };
-
-    // Trigger notification if status was changed and notifyOnUpdate is active
-    const settings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
-    if (settings.notifyOnUpdate && req.body.status && req.body.status !== oldStatus) {
-      const notifications = readJsonFile<any[]>(NOTIFICATIONS_FILE, []);
-      const notif = {
-        id: `notif-${Date.now()}`,
-        eventId: updatedEvent.id,
-        item: updatedEvent.item,
-        envolvido: updatedEvent.envolvido || 'Geral',
-        encarregado: updatedEvent.encarregado || 'SESMT',
-        area: updatedEvent.area || 'Geral',
-        recipients: settings.notificationEmails,
-        subject: `[Atualização Ocorrência #${updatedEvent.item}] Novo Status: ${updatedEvent.status}`,
-        timestamp: new Date().toISOString(),
-        status: 'Entregue',
-        previewText: `Ocorrência #${updatedEvent.item} (${updatedEvent.area}) teve o status alterado de "${oldStatus}" para "${updatedEvent.status}".`
-      };
-      notifications.unshift(notif);
-      writeJsonFile(NOTIFICATIONS_FILE, notifications.slice(0, 100));
-
-      if (supabase) {
-        try {
-          await supabase.from('notifications').insert({
-            id: notif.id,
-            event_id: notif.eventId,
-            item: notif.item,
-            envolvido: notif.envolvido,
-            encarregado: notif.encarregado,
-            area: notif.area,
-            recipients: notif.recipients,
-            subject: notif.subject,
-            status: notif.status,
-            preview_text: notif.previewText
-          });
-        } catch {}
-      }
-    }
 
     if (supabase) {
       try {
@@ -397,13 +321,49 @@ app.get('/api/notifications', async (_req: Request, res: Response) => {
     if (supabase) {
       const { data, error } = await supabase.from('notifications').select('*').order('timestamp', { ascending: false }).limit(100);
       if (!error && data && data.length > 0) {
-        return res.json(data);
+        return res.json(
+          data.map((d: any) => ({
+            id: d.id,
+            eventId: d.event_id,
+            item: d.item,
+            envolvido: d.envolvido,
+            encarregado: d.encarregado,
+            area: d.area,
+            recipients: d.recipients || [],
+            subject: d.subject,
+            timestamp: d.timestamp,
+            status: d.status,
+            previewText: d.preview_text
+          }))
+        );
       }
     }
     const notifications = readJsonFile<any[]>(NOTIFICATIONS_FILE, []);
     res.json(notifications);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao carregar notificações' });
+  }
+});
+
+// Motor real de disparo de e-mails (mesmo handler usado na Vercel em api/send-alert.ts)
+app.get('/api/send-alert', (_req: Request, res: Response) => {
+  res.json(getEmailStatus());
+});
+
+app.post('/api/send-alert', async (req: Request, res: Response) => {
+  try {
+    const body = req.body || {};
+    const type: AlertType = ['create', 'update', 'test'].includes(body.type) ? body.type : 'create';
+    const result = await dispatchAlert({
+      type,
+      eventId: body.eventId,
+      event: body.event,
+      oldStatus: body.oldStatus,
+      recipients: body.recipients
+    });
+    res.status(result.ok ? 200 : 502).json(result);
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err?.message || 'Erro interno no motor de e-mail' });
   }
 });
 

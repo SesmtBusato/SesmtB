@@ -451,10 +451,10 @@ app.get('/api/settings', async (_req: Request, res: Response) => {
           notifyOnUpdate: localSettings.notifyOnUpdate ?? true,
           googleCalendarEnabled: data.google_calendar_enabled ?? localSettings.googleCalendarEnabled,
           publicFormEnabled: data.public_form_enabled ?? localSettings.publicFormEnabled,
-          supervisors: localSettings.supervisors || DEFAULT_SETTINGS.supervisors,
-          shifts: localSettings.shifts || DEFAULT_SETTINGS.shifts,
-          equipments: localSettings.equipments || DEFAULT_SETTINGS.equipments,
-          areas: localSettings.areas || DEFAULT_SETTINGS.areas
+          supervisors: Array.isArray(localSettings.supervisors) ? localSettings.supervisors : [],
+          shifts: Array.isArray(localSettings.shifts) ? localSettings.shifts : [],
+          equipments: Array.isArray(localSettings.equipments) ? localSettings.equipments : [],
+          areas: Array.isArray(localSettings.areas) ? localSettings.areas : []
         });
       }
     } catch (e) {

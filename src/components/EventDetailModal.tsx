@@ -248,15 +248,26 @@ export const EventDetailModal: React.FC<Props> = ({
                 <div>
                   <span className="text-slate-400 block">Encarregado / Supervisor</span>
                   {isEditingFull ? (
-                    <select
-                      value={encarregado}
-                      onChange={(e) => setEncarregado(e.target.value)}
-                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
-                    >
-                      {supervisorsList.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                    supervisorsList.length > 0 ? (
+                      <select
+                        value={encarregado}
+                        onChange={(e) => setEncarregado(e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                      >
+                        <option value="">Selecione...</option>
+                        {supervisorsList.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="Nome do encarregado"
+                        value={encarregado}
+                        onChange={(e) => setEncarregado(e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                      />
+                    )
                   ) : (
                     <span className="text-white font-medium">{event.encarregado || 'Não informado'}</span>
                   )}
@@ -264,15 +275,26 @@ export const EventDetailModal: React.FC<Props> = ({
                 <div>
                   <span className="text-slate-400 block">Turno / Horário</span>
                   {isEditingFull ? (
-                    <select
-                      value={letraTurno}
-                      onChange={(e) => setLetraTurno(e.target.value)}
-                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
-                    >
-                      {shiftsList.map((sh) => (
-                        <option key={sh} value={sh}>{sh}</option>
-                      ))}
-                    </select>
+                    shiftsList.length > 0 ? (
+                      <select
+                        value={letraTurno}
+                        onChange={(e) => setLetraTurno(e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                      >
+                        <option value="">Selecione...</option>
+                        {shiftsList.map((sh) => (
+                          <option key={sh} value={sh}>{sh}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="Turno"
+                        value={letraTurno}
+                        onChange={(e) => setLetraTurno(e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                      />
+                    )
                   ) : (
                     <span className="text-slate-200">{event.letraTurno || 'Geral'}</span>
                   )}
@@ -306,15 +328,26 @@ export const EventDetailModal: React.FC<Props> = ({
                 <div>
                   <span className="text-slate-400 block">Tipo de Equipamento</span>
                   {isEditingFull ? (
-                    <select
-                      value={equipamento}
-                      onChange={(e) => setEquipamento(e.target.value)}
-                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
-                    >
-                      {equipmentsList.map((eq) => (
-                        <option key={eq} value={eq}>{eq}</option>
-                      ))}
-                    </select>
+                    equipmentsList.length > 0 ? (
+                      <select
+                        value={equipamento}
+                        onChange={(e) => setEquipamento(e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                      >
+                        <option value="">Selecione...</option>
+                        {equipmentsList.map((eq) => (
+                          <option key={eq} value={eq}>{eq}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="Equipamento"
+                        value={equipamento}
+                        onChange={(e) => setEquipamento(e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                      />
+                    )
                   ) : (
                     <span className="text-white font-medium">{event.equipamento || 'N/A'}</span>
                   )}
@@ -335,15 +368,26 @@ export const EventDetailModal: React.FC<Props> = ({
                 <div>
                   <span className="text-slate-400 block">Área Macro</span>
                   {isEditingFull ? (
-                    <select
-                      value={area}
-                      onChange={(e) => setArea(e.target.value)}
-                      className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
-                    >
-                      {areasList.map((ar) => (
-                        <option key={ar} value={ar}>{ar}</option>
-                      ))}
-                    </select>
+                    areasList.length > 0 ? (
+                      <select
+                        value={area}
+                        onChange={(e) => setArea(e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                      >
+                        <option value="">Selecione...</option>
+                        {areasList.map((ar) => (
+                          <option key={ar} value={ar}>{ar}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="Área"
+                        value={area}
+                        onChange={(e) => setArea(e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                      />
+                    )
                   ) : (
                     <span className="text-slate-200">{event.area}</span>
                   )}

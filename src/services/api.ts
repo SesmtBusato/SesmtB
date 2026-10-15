@@ -502,7 +502,29 @@ export const api = {
   },
 
   async getSettings(): Promise<AppSettings> {
-    // 1. Tenta carregar do localStorage primeiro para manter as customizações do usuário
+    // 1. Tenta carregar do backend (servidor local ou API em produção)
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data === 'object') {
+          try {
+            localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(data));
+          } catch {}
+          return {
+            ...DEFAULT_SETTINGS,
+            ...data,
+            supervisors: Array.isArray(data.supervisors) ? data.supervisors : [],
+            equipments: Array.isArray(data.equipments) ? data.equipments : [],
+            shifts: Array.isArray(data.shifts) ? data.shifts : [],
+            areas: Array.isArray(data.areas) ? data.areas : [],
+            notificationEmails: Array.isArray(data.notificationEmails) ? data.notificationEmails : DEFAULT_SETTINGS.notificationEmails,
+          };
+        }
+      }
+    } catch {}
+
+    // 2. Tenta carregar do localStorage (cache local do navegador)
     try {
       const raw = localStorage.getItem(LOCAL_SETTINGS_KEY);
       if (raw) {
@@ -510,21 +532,12 @@ export const api = {
         return {
           ...DEFAULT_SETTINGS,
           ...parsed,
-          // Garante que se o usuário deletou todos ou alguns, a lista do usuário é respeitada
-          supervisors: parsed.supervisors !== undefined ? parsed.supervisors : DEFAULT_SETTINGS.supervisors,
-          equipments: parsed.equipments !== undefined ? parsed.equipments : DEFAULT_SETTINGS.equipments,
-          shifts: parsed.shifts !== undefined ? parsed.shifts : DEFAULT_SETTINGS.shifts,
-          areas: parsed.areas !== undefined ? parsed.areas : DEFAULT_SETTINGS.areas,
-          notificationEmails: parsed.notificationEmails !== undefined ? parsed.notificationEmails : DEFAULT_SETTINGS.notificationEmails,
+          supervisors: Array.isArray(parsed.supervisors) ? parsed.supervisors : [],
+          equipments: Array.isArray(parsed.equipments) ? parsed.equipments : [],
+          shifts: Array.isArray(parsed.shifts) ? parsed.shifts : [],
+          areas: Array.isArray(parsed.areas) ? parsed.areas : [],
+          notificationEmails: Array.isArray(parsed.notificationEmails) ? parsed.notificationEmails : DEFAULT_SETTINGS.notificationEmails,
         };
-      }
-    } catch {}
-
-    // 2. Tenta carregar do backend ou Supabase
-    try {
-      const res = await fetch('/api/settings');
-      if (res.ok) {
-        return await res.json();
       }
     } catch {}
 
@@ -538,7 +551,11 @@ export const api = {
             notificationEmails: data.notification_emails || DEFAULT_SETTINGS.notificationEmails,
             autoNotifyOnCreate: data.auto_notify_on_create ?? DEFAULT_SETTINGS.autoNotifyOnCreate,
             googleCalendarEnabled: data.google_calendar_enabled ?? DEFAULT_SETTINGS.googleCalendarEnabled,
-            publicFormEnabled: data.public_form_enabled ?? DEFAULT_SETTINGS.publicFormEnabled
+            publicFormEnabled: data.public_form_enabled ?? DEFAULT_SETTINGS.publicFormEnabled,
+            supervisors: [],
+            equipments: [],
+            shifts: [],
+            areas: []
           };
         }
       } catch {}

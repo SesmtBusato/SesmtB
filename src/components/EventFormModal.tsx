@@ -11,43 +11,10 @@ interface Props {
 }
 
 export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNumber, settings }) => {
-  const commonAreas = settings?.areas && settings.areas.length > 0 ? settings.areas : ['USINA', 'PORTO', 'BASE', 'EXTERNO'];
-  const commonSupervisors = settings?.supervisors && settings.supervisors.length > 0 ? settings.supervisors : [
-    'CRISTALLY NETTO',
-    'DIEGO NEVES',
-    'THIAGO DIAS',
-    'HENRIQUE ZANOLI',
-    'GABRIELE MONTARROYOS',
-    'DEIVID ROGESTER',
-    'EDUARDO BOY',
-    'WADSON ANTONIO',
-    'WELLINGTON REIS',
-    'EDUANE PEROVANO',
-    'AGRIMALDO DIAS',
-    'LEONE PAIVA',
-    'KURT COUTO',
-    'PAULO GONDORINE',
-    'CLEITON CONCEIÇÃO',
-  ];
-  const commonEquipments = settings?.equipments && settings.equipments.length > 0 ? settings.equipments : [
-    'CAMINHÃO PIPA',
-    'MINI CARREGADEIRA',
-    'PÁ CARREGADEIRA',
-    'CAMINHÃO CAÇAMBA',
-    'CAMINHÃO BROOK',
-    'VEICULO LEVE OPERACIONAL',
-    'EMPILHADEIRA',
-    'CARRETA PRANCHA',
-    'MOTONIVELADORA',
-    'N/A'
-  ];
-  const commonShifts = settings?.shifts && settings.shifts.length > 0 ? settings.shifts : [
-    'Turno A (Manhã)',
-    'Turno B (Tarde)',
-    'Turno C (Noite/Madrugada)',
-    'Turno D',
-    'Administrativo'
-  ];
+  const commonAreas = Array.isArray(settings?.areas) ? settings.areas : [];
+  const commonSupervisors = Array.isArray(settings?.supervisors) ? settings.supervisors : [];
+  const commonEquipments = Array.isArray(settings?.equipments) ? settings.equipments : [];
+  const commonShifts = Array.isArray(settings?.shifts) ? settings.shifts : [];
 
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
@@ -71,14 +38,14 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
 
   const [dateInput, setDateInput] = useState<string>(todayStr);
   const [horario, setHorario] = useState<string>(nowTime);
-  const [area, setArea] = useState<string>(commonAreas[0] || 'USINA');
+  const [area, setArea] = useState<string>(commonAreas[0] || '');
   const [local, setLocal] = useState<string>('');
-  const [equipamento, setEquipamento] = useState<string>(commonEquipments[0] || 'CAMINHÃO PIPA');
+  const [equipamento, setEquipamento] = useState<string>(commonEquipments[0] || '');
   const [placaTag, setPlacaTag] = useState<string>('');
   const [envolvido, setEnvolvido] = useState<string>('');
-  const [letraTurno, setLetraTurno] = useState<string>(commonShifts[0] || 'Turno A (Manhã)');
+  const [letraTurno, setLetraTurno] = useState<string>(commonShifts[0] || '');
   const [estavaDeExtra, setEstavaDeExtra] = useState<'Sim' | 'Não'>('Não');
-  const [encarregado, setEncarregado] = useState<string>(commonSupervisors[0] || 'CRISTALLY NETTO');
+  const [encarregado, setEncarregado] = useState<string>(commonSupervisors[0] || '');
   const [tipoOcorrencia, setTipoOcorrencia] = useState<string>('Dano Material / Manobra');
   const [reincidente, setReincidente] = useState<'Sim' | 'Não'>('Não');
   const [quandoOcorreu, setQuandoOcorreu] = useState<string>('Durante atividade');
@@ -245,15 +212,27 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
 
               <div>
                 <label className="block font-medium text-slate-300 mb-1">Área</label>
-                <select
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
-                >
-                  {commonAreas.map((a) => (
-                    <option key={a} value={a}>{a}</option>
-                  ))}
-                </select>
+                {commonAreas.length > 0 ? (
+                  <select
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
+                  >
+                    <option value="">Selecione a área...</option>
+                    {commonAreas.map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Digite a área..."
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
+                  />
+                )}
               </div>
 
               <div>
@@ -273,15 +252,26 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block font-medium text-slate-300 mb-1">Equipamento</label>
-                <select
-                  value={equipamento}
-                  onChange={(e) => setEquipamento(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
-                >
-                  {commonEquipments.map((eq) => (
-                    <option key={eq} value={eq}>{eq}</option>
-                  ))}
-                </select>
+                {commonEquipments.length > 0 ? (
+                  <select
+                    value={equipamento}
+                    onChange={(e) => setEquipamento(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
+                  >
+                    <option value="">Selecione o equipamento...</option>
+                    {commonEquipments.map((eq) => (
+                      <option key={eq} value={eq}>{eq}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Digite o equipamento..."
+                    value={equipamento}
+                    onChange={(e) => setEquipamento(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
+                  />
+                )}
               </div>
 
               <div>
@@ -309,15 +299,26 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
 
               <div>
                 <label className="block font-medium text-slate-300 mb-1">Encarregado / Responsável</label>
-                <select
-                  value={encarregado}
-                  onChange={(e) => setEncarregado(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
-                >
-                  {commonSupervisors.map((sup) => (
-                    <option key={sup} value={sup}>{sup}</option>
-                  ))}
-                </select>
+                {commonSupervisors.length > 0 ? (
+                  <select
+                    value={encarregado}
+                    onChange={(e) => setEncarregado(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
+                  >
+                    <option value="">Selecione o encarregado...</option>
+                    {commonSupervisors.map((sup) => (
+                      <option key={sup} value={sup}>{sup}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Digite o nome do encarregado..."
+                    value={encarregado}
+                    onChange={(e) => setEncarregado(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
+                  />
+                )}
               </div>
             </div>
 
@@ -325,15 +326,26 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block font-medium text-slate-300 mb-1">Turno / Letra</label>
-                <select
-                  value={letraTurno}
-                  onChange={(e) => setLetraTurno(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
-                >
-                  {commonShifts.map((sh) => (
-                    <option key={sh} value={sh}>{sh}</option>
-                  ))}
-                </select>
+                {commonShifts.length > 0 ? (
+                  <select
+                    value={letraTurno}
+                    onChange={(e) => setLetraTurno(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
+                  >
+                    <option value="">Selecione o turno...</option>
+                    {commonShifts.map((sh) => (
+                      <option key={sh} value={sh}>{sh}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Digite o turno (ex: Turno A, ADM...)"
+                    value={letraTurno}
+                    onChange={(e) => setLetraTurno(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-hidden focus:border-orange-500"
+                  />
+                )}
               </div>
 
               <div>

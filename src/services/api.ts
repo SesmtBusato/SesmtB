@@ -236,8 +236,8 @@ export const api = {
 
   async createEvent(eventData: Partial<EventRecord>): Promise<EventRecord> {
     const localList = getLocalEvents();
-    const maxItem = localList.reduce((max, ev) => Math.max(max, Number(ev.item) || 0), 1003);
-    const newItemNumber = eventData.item || maxItem + 1;
+    const maxItem = localList.reduce((max, ev) => Math.max(max, Number(ev.item) || 0), 0);
+    const newItemNumber = eventData.item || (localList.length > 0 ? maxItem + 1 : 1);
 
     const fullEvent: EventRecord = {
       id: eventData.id || `ev-${Date.now()}`,

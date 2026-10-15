@@ -63,6 +63,12 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
   };
 
   const [customItemNumber, setCustomItemNumber] = useState<number>(nextItemNumber);
+
+  // Sincroniza se nextItemNumber for recalculado
+  React.useEffect(() => {
+    setCustomItemNumber(nextItemNumber);
+  }, [nextItemNumber]);
+
   const [dateInput, setDateInput] = useState<string>(todayStr);
   const [horario, setHorario] = useState<string>(nowTime);
   const [area, setArea] = useState<string>(commonAreas[0] || 'USINA');
@@ -158,6 +164,16 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
                     title="Clique para editar manualmente o número do item"
                   />
                 </div>
+                {customItemNumber !== 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomItemNumber(1)}
+                    className="px-2 py-0.5 rounded-md bg-[#131d2e] hover:bg-[#1a273d] text-[10px] text-sky-300 border border-[#20334f] transition cursor-pointer font-medium"
+                    title="Definir número do item para #1"
+                  >
+                    Zerar (#1)
+                  </button>
+                )}
                 {customItemNumber !== nextItemNumber && (
                   <button
                     type="button"

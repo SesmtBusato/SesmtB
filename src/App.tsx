@@ -119,8 +119,10 @@ export default function App() {
     loadData();
   };
 
-  // Next sequence number calculation
-  const nextItemNumber = events.reduce((max, ev) => Math.max(max, Number(ev.item) || 0), 1003) + 1;
+  // Next sequence number calculation (inicia em 1 se vazio ou maxItem + 1)
+  const nextItemNumber = events.length > 0
+    ? events.reduce((max, ev) => Math.max(max, Number(ev.item) || 0), 0) + 1
+    : 1;
 
   // Event handlers
   const handleEventCreated = (newEvent: EventRecord) => {

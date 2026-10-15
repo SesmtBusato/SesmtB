@@ -230,8 +230,8 @@ app.post('/api/events', async (req: Request, res: Response) => {
       newEvent.id = `ev-${Date.now()}`;
     }
     if (!newEvent.item) {
-      const maxItem = events.reduce((max, ev) => Math.max(max, Number(ev.item) || 0), 1003);
-      newEvent.item = maxItem + 1;
+      const maxItem = events.reduce((max, ev) => Math.max(max, Number(ev.item) || 0), 0);
+      newEvent.item = events.length > 0 ? maxItem + 1 : 1;
     }
     newEvent.createdAt = new Date().toISOString();
     newEvent.updatedAt = new Date().toISOString();

@@ -16,7 +16,15 @@ import {
   RotateCcw,
   FileDown,
   ArrowRight,
-  Filter
+  Filter,
+  Zap,
+  Activity,
+  Hourglass,
+  HelpCircle,
+  Shield,
+  Award,
+  AlertOctagon,
+  Target
 } from 'lucide-react';
 
 interface Props {
@@ -141,6 +149,71 @@ export const DashboardView: React.FC<Props> = ({
     const reincidentes = filteredEvents.filter((e) => e.reincidente === 'Sim').length;
     const criticos = filteredEvents.filter((e) => e.classificacaoReal === 'Crítico' || e.classificacaoReal === 'Grave').length;
 
+    // 1. Risco Oculto / Quase-Acidentes Graves: Real Leve/Moderado com Potencial Grave/Crítico
+    const riscoOculto = filteredEvents.filter(
+      (e) =>
+        (e.classificacaoReal === 'Leve' || e.classificacaoReal === 'Moderado') &&
+        (e.classificacaoPotencial === 'Grave' || e.classificacaoPotencial === 'Crítico')
+    ).length;
+
+    // 2. Fadiga & Turnos: Trabalho Extra
+    const extraSim = filteredEvents.filter((e) => e.estavaDeExtra === 'Sim').length;
+    const taxaExtra = total > 0 ? Math.round((extraSim / total) * 100) : 0;
+
+    // Distribuição por Turno
+    const shiftMap: Record<string, number> = {};
+    filteredEvents.forEach((e) => {
+      const shiftKey = (e.letraTurno || 'Geral').trim();
+      shiftMap[shiftKey] = (shiftMap[shiftKey] || 0) + 1;
+    });
+
+    // 3. Tempo de Empresa (Curva de Experiência / Integração)
+    const tenureDist = {
+      novatos: 0,    // < 1 ano
+      intermediario: 0, // 1 a 3 anos
+      veteranos: 0,  // > 3 anos
+      naoInformado: 0
+    };
+
+    filteredEvents.forEach((e) => {
+      const te = (e.tempoEmpresa || '').toLowerCase();
+      if (!te || te === 'n/a') {
+        tenureDist.naoInformado++;
+      } else if (te.includes('0 anos') || te.includes('meses') && !te.includes('ano')) {
+        tenureDist.novatos++;
+      } else if (te.includes('1 anos') || te.includes('2 anos')) {
+        tenureDist.intermediario++;
+      } else if (te.match(/([3-9]|\d{2})\s*anos/)) {
+        tenureDist.veteranos++;
+      } else {
+        tenureDist.novatos++;
+      }
+    });
+
+    // 4. SLA & Eficiência de Análise / Atrasos
+    const now = new Date();
+    let emAtraso = 0;
+    filteredEvents.forEach((e) => {
+      if (e.status !== 'Concluído' && e.prazoAnalise) {
+        const prazoDate = parseEventDate(e.prazoAnalise);
+        if (prazoDate && prazoDate < now) {
+          emAtraso++;
+        }
+      }
+    });
+
+    // 5. Placas / Tags Mais Ofensoras
+    const tagMap: Record<string, number> = {};
+    filteredEvents.forEach((e) => {
+      const tag = (e.placaTag || '').trim().toUpperCase();
+      if (tag && tag !== '--' && tag !== 'N/A') {
+        tagMap[tag] = (tagMap[tag] || 0) + 1;
+      }
+    });
+    const topTags = Object.entries(tagMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
     // Distribution by Area
     const areaMap: Record<string, number> = {};
     filteredEvents.forEach((e) => {
@@ -219,6 +292,13 @@ export const DashboardView: React.FC<Props> = ({
       concluidos,
       reincidentes,
       criticos,
+      riscoOculto,
+      extraSim,
+      taxaExtra,
+      shiftMap,
+      tenureDist,
+      emAtraso,
+      topTags,
       areaMap,
       topSupervisors,
       topPersons,
@@ -530,6 +610,100 @@ export const DashboardView: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* 🔬 Seção Analista de Dados: Indicadores de Diagnóstico Operacional & Risco Oculto */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 px-1">
+          <Activity className="w-4 h-4 text-amber-400" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 font-brand">
+            Diagnóstico Operacional & Identificação de Causa Raiz
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Risco Oculto / Quase-Acidentes */}
+          <div className="p-4 rounded-2xl busato-card border-amber-500/30 bg-amber-950/10 shadow-sm relative overflow-hidden group">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                <AlertOctagon className="w-3.5 h-3.5 text-amber-400" />
+                <span>Risco Oculto / Quase-Acidente</span>
+              </div>
+              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-md font-mono">
+                {metrics.total > 0 ? Math.round((metrics.riscoOculto / metrics.total) * 100) : 0}%
+              </span>
+            </div>
+            <div className="mt-2.5 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-amber-400 font-brand">{metrics.riscoOculto}</span>
+              <span className="text-[11px] text-slate-400">eventos com alto potencial</span>
+            </div>
+            <p className="mt-1.5 text-[10px] text-slate-400 leading-tight">
+              Ocorrências de gravidade real leve, mas com <strong>potencial grave/crítico</strong>.
+            </p>
+          </div>
+
+          {/* Card 2: Índice de Fadiga & Horas Extras */}
+          <div className="p-4 rounded-2xl busato-card border-purple-500/30 bg-purple-950/10 shadow-sm relative overflow-hidden group">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300">
+                <Zap className="w-3.5 h-3.5 text-purple-400" />
+                <span>Fator Fadiga (Trabalho Extra)</span>
+              </div>
+              <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded-md font-mono">
+                {metrics.taxaExtra}%
+              </span>
+            </div>
+            <div className="mt-2.5 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-purple-300 font-brand">{metrics.extraSim}</span>
+              <span className="text-[11px] text-slate-400">em regime de extra</span>
+            </div>
+            <p className="mt-1.5 text-[10px] text-slate-400 leading-tight">
+              Colaboradores que estavam cumprindo <strong>jornada extra</strong> no momento da falha.
+            </p>
+          </div>
+
+          {/* Card 3: Atraso de SLA / Eficiência da Liderança */}
+          <div className="p-4 rounded-2xl busato-card border-rose-500/30 bg-rose-950/10 shadow-sm relative overflow-hidden group">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-300">
+                <Hourglass className="w-3.5 h-3.5 text-rose-400" />
+                <span>SLA de Investigação</span>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${metrics.emAtraso > 0 ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                {metrics.emAtraso > 0 ? `${metrics.emAtraso} atrasados` : 'Em dia'}
+              </span>
+            </div>
+            <div className="mt-2.5 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-rose-400 font-brand">{metrics.emAtraso}</span>
+              <span className="text-[11px] text-slate-400">fora do prazo de análise</span>
+            </div>
+            <p className="mt-1.5 text-[10px] text-slate-400 leading-tight">
+              Ocorrências abertas que já <strong>superaram o prazo estipulado</strong> pela gestão.
+            </p>
+          </div>
+
+          {/* Card 4: Curva de Tempo de Empresa */}
+          <div className="p-4 rounded-2xl busato-card border-sky-500/30 bg-sky-950/10 shadow-sm relative overflow-hidden group">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-sky-300">
+                <Target className="w-3.5 h-3.5 text-sky-400" />
+                <span>Perfil de Experiência</span>
+              </div>
+              <span className="text-[10px] bg-sky-500/20 text-sky-300 px-1.5 py-0.5 rounded-md font-mono">
+                {metrics.tenureDist.novatos} novatos
+              </span>
+            </div>
+            <div className="mt-2.5 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-sky-400 font-brand">
+                {metrics.total > 0 ? Math.round((metrics.tenureDist.novatos / metrics.total) * 100) : 0}%
+              </span>
+              <span className="text-[11px] text-slate-400">&lt; 1 ano de casa</span>
+            </div>
+            <p className="mt-1.5 text-[10px] text-slate-400 leading-tight">
+              Indica se a falha está concentrada em <strong>falta de treino/integração</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Main Charts & Indicators Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Controle por Área */}
@@ -715,6 +889,165 @@ export const DashboardView: React.FC<Props> = ({
                 </div>
               );
             })}
+          </div>
+        </div>
+      </div>
+
+      {/* 📊 Terceira Linha: Diagnóstico Avançado de Causa Raiz */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Curva de Experiência / Tempo de Empresa */}
+        <div className="p-5 rounded-2xl busato-card shadow-sm space-y-4 border-sky-500/20">
+          <div className="flex items-center justify-between pb-2 border-b border-[#1e2f4a]">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-sky-400" />
+              <h3 className="text-sm font-bold text-white font-brand">Curva de Experiência</h3>
+            </div>
+            <span className="text-[11px] text-slate-400">Tempo de Casa</span>
+          </div>
+
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Identifica se os incidentes decorrem de <strong>curva de aprendizado</strong> (&lt; 1 ano) ou <strong>complacência / rotina</strong> (&gt; 3 anos).
+          </p>
+
+          <div className="space-y-3 pt-1">
+            {/* Novatos */}
+            <div className="p-2.5 rounded-xl bg-[#101726] border border-[#1e2f4a] space-y-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-200 font-medium flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                  Novatos (&lt; 1 ano)
+                </span>
+                <span className="font-mono text-amber-300 font-bold text-[11px]">
+                  {metrics.tenureDist.novatos} ({metrics.total > 0 ? Math.round((metrics.tenureDist.novatos / metrics.total) * 100) : 0}%)
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-[#182337] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                  style={{ width: `${metrics.total > 0 ? (metrics.tenureDist.novatos / metrics.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Intermediários */}
+            <div className="p-2.5 rounded-xl bg-[#101726] border border-[#1e2f4a] space-y-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-200 font-medium flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-sky-400"></span>
+                  Intermediários (1 a 3 anos)
+                </span>
+                <span className="font-mono text-sky-300 font-bold text-[11px]">
+                  {metrics.tenureDist.intermediario} ({metrics.total > 0 ? Math.round((metrics.tenureDist.intermediario / metrics.total) * 100) : 0}%)
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-[#182337] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-sky-400 rounded-full transition-all duration-500"
+                  style={{ width: `${metrics.total > 0 ? (metrics.tenureDist.intermediario / metrics.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Veteranos */}
+            <div className="p-2.5 rounded-xl bg-[#101726] border border-[#1e2f4a] space-y-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-200 font-medium flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+                  Veteranos (&gt; 3 anos)
+                </span>
+                <span className="font-mono text-indigo-300 font-bold text-[11px]">
+                  {metrics.tenureDist.veteranos} ({metrics.total > 0 ? Math.round((metrics.tenureDist.veteranos / metrics.total) * 100) : 0}%)
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-[#182337] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-indigo-400 rounded-full transition-all duration-500"
+                  style={{ width: `${metrics.total > 0 ? (metrics.tenureDist.veteranos / metrics.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Turnos Operacionais & Fator Extra */}
+        <div className="p-5 rounded-2xl busato-card shadow-sm space-y-4 border-purple-500/20">
+          <div className="flex items-center justify-between pb-2 border-b border-[#1e2f4a]">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-purple-400" />
+              <h3 className="text-sm font-bold text-white font-brand">Turnos & Horas Extras</h3>
+            </div>
+            <span className="text-[11px] text-purple-300 font-mono font-semibold">{metrics.taxaExtra}% em Extra</span>
+          </div>
+
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Concentração de eventos por escala de trabalho (Letra de Turno) versus trabalho extraordinário.
+          </p>
+
+          <div className="space-y-2.5 pt-1">
+            {Object.entries(metrics.shiftMap).length === 0 ? (
+              <p className="text-xs text-slate-500 italic py-4 text-center">Nenhum turno registrado no período.</p>
+            ) : (
+              Object.entries(metrics.shiftMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 4)
+                .map(([turno, count]) => {
+                  const pct = metrics.total > 0 ? Math.round((count / metrics.total) * 100) : 0;
+                  return (
+                    <div key={turno} className="flex items-center justify-between p-2.5 rounded-xl bg-[#101726] border border-[#1e2f4a] text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30 font-bold flex items-center justify-center font-brand text-xs">
+                          {turno}
+                        </span>
+                        <div>
+                          <span className="text-slate-200 font-medium block">Turno {turno}</span>
+                          <span className="text-[10px] text-slate-400">{count} ocorrências</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-mono text-purple-300 font-bold text-xs">{pct}%</span>
+                        <span className="text-[10px] text-slate-500 block">do volume</span>
+                      </div>
+                    </div>
+                  );
+                })
+            )}
+          </div>
+        </div>
+
+        {/* Placas & Tags Mais Ofensoras */}
+        <div className="p-5 rounded-2xl busato-card shadow-sm space-y-4 border-rose-500/20">
+          <div className="flex items-center justify-between pb-2 border-b border-[#1e2f4a]">
+            <div className="flex items-center gap-2">
+              <Truck className="w-4 h-4 text-rose-400" />
+              <h3 className="text-sm font-bold text-white font-brand">Tags / Placas Ofensoras</h3>
+            </div>
+            <span className="text-[11px] text-slate-400">Ativos Críticos</span>
+          </div>
+
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Equipamentos com maior número de ocorrências acumuladas no período selecionado.
+          </p>
+
+          <div className="space-y-2 pt-1">
+            {metrics.topTags.length === 0 ? (
+              <p className="text-xs text-slate-500 italic py-4 text-center">Nenhuma placa/tag registrada no período.</p>
+            ) : (
+              metrics.topTags.map(([tag, count], idx) => (
+                <div key={tag} className="flex items-center justify-between p-2 rounded-xl bg-[#101726] border border-[#1e2f4a] text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px] font-mono ${
+                      idx === 0 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-[#182337] text-slate-300'
+                    }`}>
+                      #{idx + 1}
+                    </span>
+                    <span className="font-mono font-semibold text-slate-200">{tag}</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-300 font-mono text-[11px] font-bold border border-rose-500/25">
+                    {count} {count === 1 ? 'evento' : 'eventos'}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { EventRecord, NotificationLog, AppSettings } from '../types';
-import { INITIAL_EVENTS } from '../data/initialEvents';
+import { supabase } from './supabaseClient';
 
 const LOCAL_STORAGE_KEY = 'safetrack_events_db_v1';
 const LOCAL_NOTIFS_KEY = 'safetrack_notifications_v1';
@@ -76,8 +76,88 @@ function saveLocalEvents(events: EventRecord[]) {
   }
 }
 
+function mapDbEventToApp(db: any): EventRecord {
+  return {
+    id: db.id,
+    item: Number(db.item),
+    data: db.data,
+    horario: db.horario,
+    diaSemana: db.dia_semana,
+    descricao: db.descricao,
+    local: db.local,
+    area: db.area,
+    equipamento: db.equipamento || '',
+    placaTag: db.placa_tag || '',
+    envolvido: db.envolvido || '',
+    letraTurno: db.letra_turno || '',
+    estavaDeExtra: db.estava_de_extra || '',
+    encarregado: db.encarregado || '',
+    dataAdmissao: db.data_admissao || '',
+    tempoEmpresa: db.tempo_empresa || '',
+    dataNascimento: db.data_nascimento || '',
+    idade: db.idade || '',
+    tipoOcorrencia: db.tipo_ocorrencia,
+    reincidente: db.reincidente || '',
+    quandoOcorreu: db.quando_ocorreu || '',
+    descricaoDano: db.descricao_dano || '',
+    classificacaoReal: db.classificacao_real,
+    classificacaoPotencial: db.classificacao_potencial,
+    numeroCat: db.numero_cat || '',
+    periodoAfastamento: db.periodo_afastamento || '',
+    prazoAnalise: db.prazo_analise || '',
+    status: db.status,
+    observacao: db.observacao || '',
+    notificadoEmail: db.notificado_email,
+    emailsNotificados: db.emails_notificados || [],
+    googleCalendarEventId: db.google_calendar_event_id,
+    googleCalendarHtmlLink: db.google_calendar_html_link,
+    createdAt: db.created_at,
+    updatedAt: db.updated_at
+  };
+}
+
+function mapAppEventToDb(appEvent: any) {
+  return {
+    id: appEvent.id,
+    item: Number(appEvent.item),
+    data: appEvent.data,
+    horario: appEvent.horario,
+    dia_semana: appEvent.diaSemana,
+    descricao: appEvent.descricao,
+    local: appEvent.local,
+    area: appEvent.area,
+    equipamento: appEvent.equipamento,
+    placa_tag: appEvent.placaTag,
+    envolvido: appEvent.envolvido,
+    letra_turno: appEvent.letraTurno,
+    estava_de_extra: appEvent.estavaDeExtra,
+    encarregado: appEvent.encarregado,
+    data_admissao: appEvent.dataAdmissao,
+    tempo_empresa: appEvent.tempoEmpresa,
+    data_nascimento: appEvent.dataNascimento,
+    idade: appEvent.idade,
+    tipo_ocorrencia: appEvent.tipoOcorrencia,
+    reincidente: appEvent.reincidente,
+    quando_ocorreu: appEvent.quandoOcorreu,
+    descricao_dano: appEvent.descricaoDano,
+    classificacao_real: appEvent.classificacaoReal,
+    classificacao_potencial: appEvent.classificacaoPotencial,
+    numero_cat: appEvent.numeroCat,
+    periodo_afastamento: appEvent.periodoAfastamento,
+    prazo_analise: appEvent.prazoAnalise,
+    status: appEvent.status,
+    observacao: appEvent.observacao,
+    notificado_email: appEvent.notificadoEmail || false,
+    emails_notificados: appEvent.emailsNotificados || [],
+    google_calendar_event_id: appEvent.googleCalendarEventId,
+    google_calendar_html_link: appEvent.googleCalendarHtmlLink,
+    updated_at: new Date().toISOString()
+  };
+}
+
 export const api = {
   async getEvents(): Promise<EventRecord[]> {
+    // 1. Tenta buscar no backend (quando rodando local ou em servidor com API)
     try {
       const res = await fetch('/api/events');
       if (res.ok) {
@@ -87,9 +167,22 @@ export const api = {
           return data;
         }
       }
-    } catch (e) {
-      console.warn('API /api/events offline, fallback to local storage:', e);
+    } catch {}
+
+    // 2. Tenta buscar direto no Supabase (produção estática como Vercel)
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('events').select('*').order('item', { ascending: false });
+        if (!error && Array.isArray(data)) {
+          const mapped = data.map(mapDbEventToApp);
+          saveLocalEvents(mapped);
+          return mapped;
+        }
+      } catch (e) {
+        console.warn('Supabase direct query failed:', e);
+      }
     }
+
     return getLocalEvents();
   },
 
@@ -134,6 +227,7 @@ export const api = {
       updatedAt: new Date().toISOString()
     };
 
+    // 1. Backend /api/events se disponível
     try {
       const res = await fetch('/api/events', {
         method: 'POST',
@@ -146,29 +240,19 @@ export const api = {
         saveLocalEvents(updated);
         return serverEvent;
       }
-    } catch (e) {
-      console.warn('API POST /api/events failed, saving locally:', e);
+    } catch {}
+
+    // 2. Supabase direto (produção Vercel)
+    if (supabase) {
+      try {
+        await supabase.from('events').insert(mapAppEventToDb(fullEvent));
+      } catch (e) {
+        console.warn('Supabase direct insert error:', e);
+      }
     }
 
     const updated = [fullEvent, ...localList];
     saveLocalEvents(updated);
-
-    // Save notification locally too
-    const notifs = api.getLocalNotifications();
-    notifs.unshift({
-      id: `notif-${Date.now()}`,
-      eventId: fullEvent.id,
-      item: fullEvent.item,
-      envolvido: fullEvent.envolvido,
-      encarregado: fullEvent.encarregado,
-      area: fullEvent.area,
-      recipients: ['alysonmish@gmail.com'],
-      subject: `[Alerta Ocorrência #${fullEvent.item}] ${fullEvent.area} - ${fullEvent.tipoOcorrencia}`,
-      timestamp: new Date().toISOString(),
-      status: 'Entregue',
-      previewText: fullEvent.descricao.substring(0, 120)
-    });
-    localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(notifs.slice(0, 50)));
 
     return fullEvent;
   },
@@ -196,8 +280,14 @@ export const api = {
         const serverUpdated = await res.json();
         return serverUpdated;
       }
-    } catch (e) {
-      console.warn('API PUT failed, updated locally:', e);
+    } catch {}
+
+    if (supabase) {
+      try {
+        await supabase.from('events').update(mapAppEventToDb(merged)).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase direct update error:', e);
+      }
     }
 
     return merged;
@@ -209,9 +299,16 @@ export const api = {
 
     try {
       await fetch(`/api/events/${id}`, { method: 'DELETE' });
-    } catch (e) {
-      console.warn('API DELETE failed, removed locally:', e);
+    } catch {}
+
+    if (supabase) {
+      try {
+        await supabase.from('events').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase direct delete error:', e);
+      }
     }
+
     return true;
   },
 
@@ -219,11 +316,20 @@ export const api = {
     saveLocalEvents([]);
     localStorage.removeItem(LOCAL_STORAGE_KEY);
     localStorage.removeItem(LOCAL_NOTIFS_KEY);
+
     try {
       await fetch('/api/events/all', { method: 'DELETE' });
-    } catch (e) {
-      console.warn('API DELETE /api/events/all failed:', e);
+    } catch {}
+
+    if (supabase) {
+      try {
+        await supabase.from('events').delete().neq('id', 'dummy_never_match');
+        await supabase.from('notifications').delete().neq('id', 'dummy_never_match');
+      } catch (e) {
+        console.warn('Supabase direct delete all error:', e);
+      }
     }
+
     return true;
   },
 
@@ -232,34 +338,7 @@ export const api = {
       const raw = localStorage.getItem(LOCAL_NOTIFS_KEY);
       if (raw) return JSON.parse(raw);
     } catch {}
-    return [
-      {
-        id: 'notif-seed-1',
-        eventId: 'ev-1003',
-        item: 1003,
-        envolvido: 'JOÃO CARLOS CHAGAS',
-        encarregado: 'THIAGO DIAS',
-        area: 'USINA',
-        recipients: ['alysonmish@gmail.com'],
-        subject: '[Alerta Ocorrência #1003] USINA - Incidente Operacional / Atolamento em Minério',
-        timestamp: new Date().toISOString(),
-        status: 'Entregue',
-        previewText: 'Pá carregadeira atolada no leito de minério saturado no 7PA5 lado sul...'
-      },
-      {
-        id: 'notif-seed-2',
-        eventId: 'ev-1001',
-        item: 1001,
-        envolvido: 'MOTORISTA E AUXILIARES SODEXO',
-        encarregado: 'CRISTALLY NETTO',
-        area: 'PORTO',
-        recipients: ['alysonmish@gmail.com'],
-        subject: '[Alerta Ocorrência #1001] PORTO - Incidente Ambiental Crítico / Derramamento de Diesel',
-        timestamp: new Date().toISOString(),
-        status: 'Entregue',
-        previewText: 'Tanque de combustível furado com derramamento de diesel na via...'
-      }
-    ];
+    return [];
   },
 
   async getNotifications(): Promise<NotificationLog[]> {
@@ -267,40 +346,113 @@ export const api = {
       const res = await fetch('/api/notifications');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) return data;
+        if (Array.isArray(data)) return data;
       }
     } catch {}
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('notifications').select('*').order('timestamp', { ascending: false }).limit(100);
+        if (!error && Array.isArray(data)) {
+          return data.map((d: any) => ({
+            id: d.id,
+            eventId: d.event_id,
+            item: d.item,
+            envolvido: d.envolvido,
+            encarregado: d.encarregado,
+            area: d.area,
+            recipients: d.recipients || [],
+            subject: d.subject,
+            timestamp: d.timestamp,
+            status: d.status,
+            previewText: d.preview_text
+          }));
+        }
+      } catch (e) {
+        console.warn('Supabase direct notifications query error:', e);
+      }
+    }
+
     return api.getLocalNotifications();
   },
 
   async getSettings(): Promise<AppSettings> {
+    // 1. Tenta carregar do localStorage primeiro para manter as customizações do usuário
+    try {
+      const raw = localStorage.getItem(LOCAL_SETTINGS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          ...DEFAULT_SETTINGS,
+          ...parsed,
+          // Garante que se o usuário deletou todos ou alguns, a lista do usuário é respeitada
+          supervisors: parsed.supervisors !== undefined ? parsed.supervisors : DEFAULT_SETTINGS.supervisors,
+          equipments: parsed.equipments !== undefined ? parsed.equipments : DEFAULT_SETTINGS.equipments,
+          shifts: parsed.shifts !== undefined ? parsed.shifts : DEFAULT_SETTINGS.shifts,
+          areas: parsed.areas !== undefined ? parsed.areas : DEFAULT_SETTINGS.areas,
+          notificationEmails: parsed.notificationEmails !== undefined ? parsed.notificationEmails : DEFAULT_SETTINGS.notificationEmails,
+        };
+      }
+    } catch {}
+
+    // 2. Tenta carregar do backend ou Supabase
     try {
       const res = await fetch('/api/settings');
       if (res.ok) {
         return await res.json();
       }
     } catch {}
-    try {
-      const raw = localStorage.getItem(LOCAL_SETTINGS_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
+
+    if (supabase) {
+      try {
+        const { data } = await supabase.from('settings').select('*').eq('id', 'app_settings').single();
+        if (data) {
+          return {
+            ...DEFAULT_SETTINGS,
+            companyName: data.company_name || DEFAULT_SETTINGS.companyName,
+            notificationEmails: data.notification_emails || DEFAULT_SETTINGS.notificationEmails,
+            autoNotifyOnCreate: data.auto_notify_on_create ?? DEFAULT_SETTINGS.autoNotifyOnCreate,
+            googleCalendarEnabled: data.google_calendar_enabled ?? DEFAULT_SETTINGS.googleCalendarEnabled,
+            publicFormEnabled: data.public_form_enabled ?? DEFAULT_SETTINGS.publicFormEnabled
+          };
+        }
+      } catch {}
+    }
+
     return DEFAULT_SETTINGS;
   },
 
   async saveSettings(settings: AppSettings): Promise<AppSettings> {
     try {
       localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(settings));
-      const res = await fetch('/api/settings', {
+    } catch (e) {
+      console.warn('Failed saving settings to localStorage:', e);
+    }
+
+    try {
+      await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
       });
-      if (res.ok) {
-        return await res.json();
+    } catch {}
+
+    if (supabase) {
+      try {
+        await supabase.from('settings').upsert({
+          id: 'app_settings',
+          company_name: settings.companyName,
+          notification_emails: settings.notificationEmails,
+          auto_notify_on_create: settings.autoNotifyOnCreate,
+          google_calendar_enabled: settings.googleCalendarEnabled,
+          public_form_enabled: settings.publicFormEnabled,
+          updated_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.warn('Supabase direct settings upsert error:', e);
       }
-    } catch (e) {
-      console.warn('Failed saving settings to server, saved locally:', e);
     }
+
     return settings;
   }
 };

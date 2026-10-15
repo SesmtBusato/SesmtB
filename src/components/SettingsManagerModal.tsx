@@ -33,12 +33,12 @@ export const SettingsManagerModal: React.FC<Props> = ({
   const [activeSubTab, setActiveSubTab] = useState<'notifications' | 'supervisors' | 'equipments' | 'shifts' | 'areas' | 'systemData'>('notifications');
   const [formData, setFormData] = useState<AppSettings>(() => ({
     companyName: settings?.companyName || 'BUSATO - Gestão e Monitoramento de Ocorrências',
-    notificationEmails: settings?.notificationEmails || ['alysonmish@gmail.com', 'sesmt@busato.com.br', 'operacoes@busato.com.br'],
+    notificationEmails: settings?.notificationEmails ?? ['alysonmish@gmail.com', 'sesmt@busato.com.br', 'operacoes@busato.com.br'],
     autoNotifyOnCreate: settings?.autoNotifyOnCreate ?? true,
     notifyOnUpdate: settings?.notifyOnUpdate ?? true,
     googleCalendarEnabled: settings?.googleCalendarEnabled ?? true,
     publicFormEnabled: settings?.publicFormEnabled ?? true,
-    supervisors: settings?.supervisors && settings.supervisors.length > 0 ? settings.supervisors : [
+    supervisors: settings?.supervisors ?? [
       'CRISTALLY NETTO',
       'DIEGO NEVES',
       'THIAGO DIAS',
@@ -55,14 +55,14 @@ export const SettingsManagerModal: React.FC<Props> = ({
       'PAULO GONDORINE',
       'CLEITON CONCEIÇÃO'
     ],
-    shifts: settings?.shifts && settings.shifts.length > 0 ? settings.shifts : [
+    shifts: settings?.shifts ?? [
       'Turno A (Manhã)',
       'Turno B (Tarde)',
       'Turno C (Noite/Madrugada)',
       'Turno D',
       'Administrativo'
     ],
-    equipments: settings?.equipments && settings.equipments.length > 0 ? settings.equipments : [
+    equipments: settings?.equipments ?? [
       'CAMINHÃO PIPA',
       'MINI CARREGADEIRA',
       'PÁ CARREGADEIRA',
@@ -74,7 +74,7 @@ export const SettingsManagerModal: React.FC<Props> = ({
       'MOTONIVELADORA',
       'N/A'
     ],
-    areas: settings?.areas && settings.areas.length > 0 ? settings.areas : ['USINA', 'PORTO', 'BASE', 'EXTERNO', 'OUTROS']
+    areas: settings?.areas ?? ['USINA', 'PORTO', 'BASE', 'EXTERNO', 'OUTROS']
   }));
   const [newEmail, setNewEmail] = useState('');
   const [newSupervisor, setNewSupervisor] = useState('');
@@ -87,18 +87,18 @@ export const SettingsManagerModal: React.FC<Props> = ({
   // Sync state if settings prop arrives/updates asynchronously
   React.useEffect(() => {
     if (settings) {
-      setFormData((prev) => ({
-        companyName: settings.companyName || prev.companyName,
-        notificationEmails: settings.notificationEmails?.length ? settings.notificationEmails : prev.notificationEmails,
-        autoNotifyOnCreate: settings.autoNotifyOnCreate ?? prev.autoNotifyOnCreate,
-        notifyOnUpdate: settings.notifyOnUpdate ?? prev.notifyOnUpdate,
-        googleCalendarEnabled: settings.googleCalendarEnabled ?? prev.googleCalendarEnabled,
-        publicFormEnabled: settings.publicFormEnabled ?? prev.publicFormEnabled,
-        supervisors: settings.supervisors?.length ? settings.supervisors : prev.supervisors,
-        shifts: settings.shifts?.length ? settings.shifts : prev.shifts,
-        equipments: settings.equipments?.length ? settings.equipments : prev.equipments,
-        areas: settings.areas?.length ? settings.areas : prev.areas,
-      }));
+      setFormData({
+        companyName: settings.companyName || 'BUSATO - Gestão e Monitoramento de Ocorrências',
+        notificationEmails: settings.notificationEmails ?? [],
+        autoNotifyOnCreate: settings.autoNotifyOnCreate ?? true,
+        notifyOnUpdate: settings.notifyOnUpdate ?? true,
+        googleCalendarEnabled: settings.googleCalendarEnabled ?? true,
+        publicFormEnabled: settings.publicFormEnabled ?? true,
+        supervisors: settings.supervisors ?? [],
+        shifts: settings.shifts ?? [],
+        equipments: settings.equipments ?? [],
+        areas: settings.areas ?? [],
+      });
     }
   }, [settings]);
 

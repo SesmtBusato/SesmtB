@@ -1,11 +1,60 @@
 {
-  "companyName": "SafeTrack Industrial - Monitoramento Operacional",
+  "companyName": "BUSATO - Gestão e Monitoramento de Ocorrências",
   "notificationEmails": [
-    "alysonmish@gmail.com",
-    "sesmt@safetrack.com.br",
-    "operacoes@safetrack.com.br"
+    "sesmt@busato.com.br",
+    "alyson.oliveira@busatoloc.com.br"
   ],
   "autoNotifyOnCreate": true,
   "googleCalendarEnabled": true,
-  "publicFormEnabled": true
+  "publicFormEnabled": true,
+  "notifyOnUpdate": true,
+  "supervisors": [
+    "CRISTALLY NETTO",
+    "DIEGO NEVES",
+    "THIAGO DIAS",
+    "HENRIQUE ZANOLI",
+    "GABRIELE MONTARROYOS",
+    "DEIVID ROGESTER",
+    "EDUARDO BOY",
+    "WADSON ANTONIO",
+    "WELLINGTON REIS",
+    "EDUANE PEROVANO",
+    "AGRIMALDO DIAS",
+    "LEONE PAIVA",
+    "KURT COUTO",
+    "PAULO GONDORINE",
+    "CLEITON CONCEIÇÃO",
+    "LUCAS ANDRADE"
+  ],
+  "shifts": [
+    "Turno A (Manhã)",
+    "Turno B (Tarde)",
+    "Turno C (Noite/Madrugada)",
+    "Turno D",
+    "Administrativo",
+    "Turno A  (Dia)",
+    "Turno B  (Dia)",
+    "Turno A  (Noite)",
+    "Turno B (Noite)",
+    "ADM"
+  ],
+  "equipments": [
+    "CAMINHÃO PIPA",
+    "MINI CARREGADEIRA",
+    "PÁ CARREGADEIRA",
+    "CAMINHÃO CAÇAMBA",
+    "CAMINHÃO BROOK",
+    "VEICULO LEVE OPERACIONAL",
+    "EMPILHADEIRA",
+    "CARRETA PRANCHA",
+    "MOTONIVELADORA",
+    "N/A"
+  ],
+  "areas": [
+    "USINA",
+    "PORTO",
+    "BASE",
+    "EXTERNO",
+    "OUTROS"
+  ]
 }

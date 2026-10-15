@@ -62,6 +62,7 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
     }
   };
 
+  const [customItemNumber, setCustomItemNumber] = useState<number>(nextItemNumber);
   const [dateInput, setDateInput] = useState<string>(todayStr);
   const [horario, setHorario] = useState<string>(nowTime);
   const [area, setArea] = useState<string>(commonAreas[0] || 'USINA');
@@ -97,7 +98,7 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
     const diaSemana = getDayOfWeekName(dateInput);
 
     const payload: Partial<EventRecord> = {
-      item: nextItemNumber,
+      item: Number(customItemNumber) || nextItemNumber,
       data: formattedDate,
       horario,
       diaSemana,
@@ -145,9 +146,29 @@ export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNu
               <h3 className="text-base font-bold text-white font-brand">
                 Registro de Nova Ocorrência / Evento
               </h3>
-              <p className="text-xs text-slate-400">
-                Item sequencial gerado automaticamente: <span className="text-[#38bdf8] font-bold font-mono">#{nextItemNumber}</span>
-              </p>
+              <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
+                <span>Nº do Item:</span>
+                <div className="flex items-center gap-1.5 bg-[#101726] px-2 py-0.5 rounded-lg border border-[#1e2f4a]">
+                  <span className="text-[#38bdf8] font-bold font-mono">#</span>
+                  <input
+                    type="number"
+                    value={customItemNumber}
+                    onChange={(e) => setCustomItemNumber(parseInt(e.target.value) || 0)}
+                    className="w-20 bg-transparent text-[#38bdf8] font-bold font-mono text-xs focus:outline-hidden"
+                    title="Clique para editar manualmente o número do item"
+                  />
+                </div>
+                {customItemNumber !== nextItemNumber && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomItemNumber(nextItemNumber)}
+                    className="text-[10px] text-amber-400 hover:text-amber-300 underline cursor-pointer"
+                    title="Restaurar para a sequência automática calculada"
+                  >
+                    (Sugerido: #{nextItemNumber})
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           <button

@@ -494,6 +494,7 @@ export default function App() {
         <EventDetailModal
           event={selectedEvent}
           settings={settings}
+          nextItemNumber={nextItemNumber}
           onClose={() => setSelectedEvent(null)}
           onUpdate={handleEventUpdated}
           onDelete={handleDeleteEvent}
@@ -537,6 +538,12 @@ export default function App() {
             const saved = await api.saveSettings(newSettings);
             setSettings(saved);
             showToast('Dados cadastrais e alertas salvos com sucesso!');
+          }}
+          onClearAllData={async () => {
+            await api.deleteAllEvents();
+            setEvents([]);
+            setNotifications([]);
+            showToast('Todos os registros foram excluídos com sucesso!');
           }}
         />
       )}

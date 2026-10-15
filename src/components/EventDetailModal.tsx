@@ -21,6 +21,7 @@ import {
 interface Props {
   event: EventRecord;
   settings?: AppSettings;
+  nextItemNumber?: number;
   onClose: () => void;
   onUpdate: (updated: EventRecord) => void;
   onDelete?: (id: string) => void;
@@ -30,11 +31,13 @@ interface Props {
 export const EventDetailModal: React.FC<Props> = ({
   event,
   settings,
+  nextItemNumber,
   onClose,
   onUpdate,
   onDelete,
   onOpenCalendarModal,
 }) => {
+  const [itemNumber, setItemNumber] = useState<number>(event.item);
   const [currentStatus, setCurrentStatus] = useState<StatusType>(event.status);
   const [observacao, setObservacao] = useState<string>(event.observacao || '');
   const [prazoAnalise, setPrazoAnalise] = useState<string>(event.prazoAnalise || '');
@@ -61,6 +64,7 @@ export const EventDetailModal: React.FC<Props> = ({
     setIsSaving(true);
     const updated: EventRecord = {
       ...event,
+      item: Number(itemNumber) || event.item,
       status: currentStatus,
       observacao,
       prazoAnalise,
@@ -95,9 +99,34 @@ export const EventDetailModal: React.FC<Props> = ({
         {/* Header */}
         <div className="flex items-start justify-between pb-4 border-b border-[#1e2f4a] shrink-0">
           <div className="flex items-center gap-3">
-            <span className="px-3 py-1 bg-[#121c2d] text-[#38bdf8] font-bold font-mono text-sm rounded-lg border border-[#1e2f4a] shadow-xs">
-              ITEM #{event.item}
-            </span>
+            {isEditingFull ? (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-[#121c2d] border border-[#38bdf8]/50 rounded-lg shadow-xs">
+                  <span className="text-[#38bdf8] font-bold font-mono text-sm">ITEM #</span>
+                  <input
+                    type="number"
+                    value={itemNumber}
+                    onChange={(e) => setItemNumber(parseInt(e.target.value) || 0)}
+                    className="w-20 bg-transparent text-[#38bdf8] font-bold font-mono text-sm focus:outline-hidden"
+                    title="Editar número do item"
+                  />
+                </div>
+                {nextItemNumber && itemNumber !== nextItemNumber && (
+                  <button
+                    type="button"
+                    onClick={() => setItemNumber(nextItemNumber)}
+                    className="text-[10px] text-amber-400 hover:text-amber-300 underline cursor-pointer text-left"
+                    title="Preencher com a próxima sequência automática"
+                  >
+                    Sugerir próxima: #{nextItemNumber}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <span className="px-3 py-1 bg-[#121c2d] text-[#38bdf8] font-bold font-mono text-sm rounded-lg border border-[#1e2f4a] shadow-xs">
+                ITEM #{event.item}
+              </span>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <span

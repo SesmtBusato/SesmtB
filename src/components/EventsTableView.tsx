@@ -320,8 +320,14 @@ export const EventsTableView: React.FC<Props> = ({
                     className="hover:bg-[#162438]/60 transition group"
                   >
                     {/* Item */}
-                    <td className="py-2.5 px-3.5 text-center font-mono font-bold text-[#38bdf8] whitespace-nowrap">
-                      #{ev.item}
+                    <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
+                      <button
+                        onClick={() => onSelectEvent(ev)}
+                        className="font-mono font-bold text-[#38bdf8] hover:text-sky-300 hover:underline cursor-pointer px-1 py-0.5 rounded transition"
+                        title="Clique para editar dados e número do item"
+                      >
+                        #{ev.item}
+                      </button>
                     </td>
 
                     {/* Data / Hora */}

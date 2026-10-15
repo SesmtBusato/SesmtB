@@ -58,18 +58,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
 function getLocalEvents(): EventRecord[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch (e) {
     console.error('Error reading localStorage events:', e);
   }
-  // Initialize with initial events
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_EVENTS));
-  } catch {}
-  return INITIAL_EVENTS;
+  return [];
 }
 
 function saveLocalEvents(events: EventRecord[]) {
@@ -86,7 +82,7 @@ export const api = {
       const res = await fetch('/api/events');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           saveLocalEvents(data);
           return data;
         }
@@ -215,6 +211,18 @@ export const api = {
       await fetch(`/api/events/${id}`, { method: 'DELETE' });
     } catch (e) {
       console.warn('API DELETE failed, removed locally:', e);
+    }
+    return true;
+  },
+
+  async deleteAllEvents(): Promise<boolean> {
+    saveLocalEvents([]);
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    localStorage.removeItem(LOCAL_NOTIFS_KEY);
+    try {
+      await fetch('/api/events/all', { method: 'DELETE' });
+    } catch (e) {
+      console.warn('API DELETE /api/events/all failed:', e);
     }
     return true;
   },

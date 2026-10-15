@@ -194,19 +194,29 @@ app.get('/api/events', async (_req: Request, res: Response) => {
     }
 
     let events = readJsonFile<any[]>(EVENTS_FILE, []);
-    if (!events || events.length === 0) {
-      try {
-        const { INITIAL_EVENTS } = await import('./src/data/initialEvents.ts');
-        events = INITIAL_EVENTS;
-        writeJsonFile(EVENTS_FILE, events);
-      } catch (e) {
-        console.warn('Could not auto-import INITIAL_EVENTS:', e);
-      }
-    }
     res.json(events);
   } catch (err) {
     console.error('Error fetching events:', err);
     res.status(500).json({ error: 'Erro ao carregar eventos' });
+  }
+});
+
+app.delete('/api/events/all', async (_req: Request, res: Response) => {
+  try {
+    if (supabase) {
+      try {
+        await supabase.from('events').delete().neq('id', '');
+        await supabase.from('notifications').delete().neq('id', '');
+      } catch (e) {
+        console.warn('Supabase clear all warning:', e);
+      }
+    }
+    writeJsonFile(EVENTS_FILE, []);
+    writeJsonFile(NOTIFICATIONS_FILE, []);
+    res.json({ success: true, message: 'Todos os eventos foram apagados.' });
+  } catch (err) {
+    console.error('Error deleting all events:', err);
+    res.status(500).json({ error: 'Erro ao apagar todos os eventos' });
   }
 });
 

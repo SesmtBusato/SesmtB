@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { EventRecord, AreaType, SeverityType } from '../types';
+import { EventRecord, AreaType, SeverityType, AppSettings } from '../types';
 import { api } from '../services/api';
 import { ShieldCheck, Send, CheckCircle2, ArrowLeft, Copy, Check } from 'lucide-react';
 

@@ -13,21 +13,24 @@ import {
   Save,
   CheckCircle2,
   Bell,
-  Sliders
+  Sliders,
+  AlertOctagon
 } from 'lucide-react';
 
 interface Props {
   settings: AppSettings;
   onClose: () => void;
   onSave: (newSettings: AppSettings) => Promise<void>;
+  onClearAllData?: () => Promise<void>;
 }
 
 export const SettingsManagerModal: React.FC<Props> = ({
   settings,
   onClose,
   onSave,
+  onClearAllData,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'notifications' | 'supervisors' | 'equipments' | 'shifts' | 'areas'>('notifications');
+  const [activeSubTab, setActiveSubTab] = useState<'notifications' | 'supervisors' | 'equipments' | 'shifts' | 'areas' | 'systemData'>('notifications');
   const [formData, setFormData] = useState<AppSettings>(() => ({
     companyName: settings?.companyName || 'BUSATO - Gestão e Monitoramento de Ocorrências',
     notificationEmails: settings?.notificationEmails || ['alysonmish@gmail.com', 'sesmt@busato.com.br', 'operacoes@busato.com.br'],
@@ -293,6 +296,18 @@ export const SettingsManagerModal: React.FC<Props> = ({
           >
             <Layers className="w-3.5 h-3.5" />
             <span>Áreas ({formData.areas?.length || 0})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('systemData')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
+              activeSubTab === 'systemData'
+                ? 'bg-rose-600 text-white shadow-xs font-semibold'
+                : 'text-rose-400 hover:bg-rose-950/40 hover:text-rose-300'
+            }`}
+          >
+            <AlertOctagon className="w-3.5 h-3.5" />
+            <span>Limpeza de Dados</span>
           </button>
         </div>
 
@@ -581,6 +596,50 @@ export const SettingsManagerModal: React.FC<Props> = ({
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: DANGER ZONE / LIMPEZA DE DADOS */}
+          {activeSubTab === 'systemData' && (
+            <div className="p-5 bg-rose-950/20 border border-rose-500/30 rounded-2xl space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                  <AlertOctagon className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-white">Zona de Limpeza do Sistema</h4>
+                  <p className="text-xs text-rose-200/80 mt-0.5">
+                    Utilize esta opção quando quiser zerar todos os registros de ocorrências e notificações geradas.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-[#0e1626] rounded-xl border border-rose-900/40 text-xs text-slate-300 space-y-2">
+                <p>
+                  Esta ação irá apagar <strong>todas as ocorrências cadastradas</strong> tanto na base de dados (Supabase) quanto no cache do seu navegador e arquivos locais.
+                </p>
+                <p className="text-slate-400 text-[11px]">
+                  Os cadastros de encarregados, maquinários e áreas não serão afetados.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (window.confirm('TEM CERTEZA ABSOLUTA? Esta ação irá excluir todas as ocorrências e notificações do sistema permanentemente.')) {
+                      if (onClearAllData) {
+                        await onClearAllData();
+                        onClose();
+                      }
+                    }
+                  }}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold flex items-center gap-2 transition cursor-pointer shadow-lg shadow-rose-900/30"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Excluir Todos os Registros do Sistema</span>
+                </button>
               </div>
             </div>
           )}

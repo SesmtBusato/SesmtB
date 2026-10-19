@@ -440,6 +440,20 @@ app.post('/api/notifications/send', async (req: Request, res: Response) => {
 
 app.get('/api/settings', async (_req: Request, res: Response) => {
   const localSettings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
+  
+  const supervisors = (Array.isArray(localSettings.supervisors) && localSettings.supervisors.length > 0)
+    ? localSettings.supervisors
+    : DEFAULT_SETTINGS.supervisors;
+  const shifts = (Array.isArray(localSettings.shifts) && localSettings.shifts.length > 0)
+    ? localSettings.shifts
+    : DEFAULT_SETTINGS.shifts;
+  const equipments = (Array.isArray(localSettings.equipments) && localSettings.equipments.length > 0)
+    ? localSettings.equipments
+    : DEFAULT_SETTINGS.equipments;
+  const areas = (Array.isArray(localSettings.areas) && localSettings.areas.length > 0)
+    ? localSettings.areas
+    : DEFAULT_SETTINGS.areas;
+
   if (supabase) {
     try {
       const { data } = await supabase.from('settings').select('*').eq('id', 'app_settings').single();
@@ -451,17 +465,23 @@ app.get('/api/settings', async (_req: Request, res: Response) => {
           notifyOnUpdate: localSettings.notifyOnUpdate ?? true,
           googleCalendarEnabled: data.google_calendar_enabled ?? localSettings.googleCalendarEnabled,
           publicFormEnabled: data.public_form_enabled ?? localSettings.publicFormEnabled,
-          supervisors: Array.isArray(localSettings.supervisors) ? localSettings.supervisors : [],
-          shifts: Array.isArray(localSettings.shifts) ? localSettings.shifts : [],
-          equipments: Array.isArray(localSettings.equipments) ? localSettings.equipments : [],
-          areas: Array.isArray(localSettings.areas) ? localSettings.areas : []
+          supervisors,
+          shifts,
+          equipments,
+          areas
         });
       }
     } catch (e) {
       console.warn('Supabase get settings error, fallback to local:', e);
     }
   }
-  res.json(localSettings);
+  res.json({
+    ...localSettings,
+    supervisors,
+    shifts,
+    equipments,
+    areas
+  });
 });
 
 app.post('/api/settings', async (req: Request, res: Response) => {

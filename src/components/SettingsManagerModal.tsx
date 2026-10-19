@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AppSettings } from '../types';
+import { DEFAULT_SETTINGS } from '../services/api';
 import {
   X,
   Settings,
@@ -32,49 +33,16 @@ export const SettingsManagerModal: React.FC<Props> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'notifications' | 'supervisors' | 'equipments' | 'shifts' | 'areas' | 'systemData'>('notifications');
   const [formData, setFormData] = useState<AppSettings>(() => ({
-    companyName: settings?.companyName || 'BUSATO - Gestão e Monitoramento de Ocorrências',
-    notificationEmails: settings?.notificationEmails ?? ['alysonmish@gmail.com', 'sesmt@busato.com.br', 'operacoes@busato.com.br'],
+    companyName: settings?.companyName || DEFAULT_SETTINGS.companyName,
+    notificationEmails: (settings?.notificationEmails && settings.notificationEmails.length > 0) ? settings.notificationEmails : DEFAULT_SETTINGS.notificationEmails,
     autoNotifyOnCreate: settings?.autoNotifyOnCreate ?? true,
     notifyOnUpdate: settings?.notifyOnUpdate ?? true,
     googleCalendarEnabled: settings?.googleCalendarEnabled ?? true,
     publicFormEnabled: settings?.publicFormEnabled ?? true,
-    supervisors: settings?.supervisors ?? [
-      'CRISTALLY NETTO',
-      'DIEGO NEVES',
-      'THIAGO DIAS',
-      'HENRIQUE ZANOLI',
-      'GABRIELE MONTARROYOS',
-      'DEIVID ROGESTER',
-      'EDUARDO BOY',
-      'WADSON ANTONIO',
-      'WELLINGTON REIS',
-      'EDUANE PEROVANO',
-      'AGRIMALDO DIAS',
-      'LEONE PAIVA',
-      'KURT COUTO',
-      'PAULO GONDORINE',
-      'CLEITON CONCEIÇÃO'
-    ],
-    shifts: settings?.shifts ?? [
-      'Turno A (Manhã)',
-      'Turno B (Tarde)',
-      'Turno C (Noite/Madrugada)',
-      'Turno D',
-      'Administrativo'
-    ],
-    equipments: settings?.equipments ?? [
-      'CAMINHÃO PIPA',
-      'MINI CARREGADEIRA',
-      'PÁ CARREGADEIRA',
-      'CAMINHÃO CAÇAMBA',
-      'CAMINHÃO BROOK',
-      'VEICULO LEVE OPERACIONAL',
-      'EMPILHADEIRA',
-      'CARRETA PRANCHA',
-      'MOTONIVELADORA',
-      'N/A'
-    ],
-    areas: settings?.areas ?? ['USINA', 'PORTO', 'BASE', 'EXTERNO', 'OUTROS']
+    supervisors: (settings?.supervisors && settings.supervisors.length > 0) ? settings.supervisors : DEFAULT_SETTINGS.supervisors,
+    shifts: (settings?.shifts && settings.shifts.length > 0) ? settings.shifts : DEFAULT_SETTINGS.shifts,
+    equipments: (settings?.equipments && settings.equipments.length > 0) ? settings.equipments : DEFAULT_SETTINGS.equipments,
+    areas: (settings?.areas && settings.areas.length > 0) ? settings.areas : DEFAULT_SETTINGS.areas
   }));
   const [newEmail, setNewEmail] = useState('');
   const [newSupervisor, setNewSupervisor] = useState('');
@@ -88,16 +56,16 @@ export const SettingsManagerModal: React.FC<Props> = ({
   React.useEffect(() => {
     if (settings) {
       setFormData({
-        companyName: settings.companyName || 'BUSATO - Gestão e Monitoramento de Ocorrências',
-        notificationEmails: settings.notificationEmails ?? [],
+        companyName: settings.companyName || DEFAULT_SETTINGS.companyName,
+        notificationEmails: (settings.notificationEmails && settings.notificationEmails.length > 0) ? settings.notificationEmails : DEFAULT_SETTINGS.notificationEmails,
         autoNotifyOnCreate: settings.autoNotifyOnCreate ?? true,
         notifyOnUpdate: settings.notifyOnUpdate ?? true,
         googleCalendarEnabled: settings.googleCalendarEnabled ?? true,
         publicFormEnabled: settings.publicFormEnabled ?? true,
-        supervisors: settings.supervisors ?? [],
-        shifts: settings.shifts ?? [],
-        equipments: settings.equipments ?? [],
-        areas: settings.areas ?? [],
+        supervisors: (settings.supervisors && settings.supervisors.length > 0) ? settings.supervisors : DEFAULT_SETTINGS.supervisors,
+        shifts: (settings.shifts && settings.shifts.length > 0) ? settings.shifts : DEFAULT_SETTINGS.shifts,
+        equipments: (settings.equipments && settings.equipments.length > 0) ? settings.equipments : DEFAULT_SETTINGS.equipments,
+        areas: (settings.areas && settings.areas.length > 0) ? settings.areas : DEFAULT_SETTINGS.areas,
       });
     }
   }, [settings]);

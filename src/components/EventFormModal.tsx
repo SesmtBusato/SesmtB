@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { EventRecord, AreaType, SeverityType, StatusType, AppSettings } from '../types';
-import { api } from '../services/api';
+import { api, DEFAULT_SETTINGS } from '../services/api';
 import { X, Send, AlertTriangle, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 interface Props {
@@ -11,10 +11,18 @@ interface Props {
 }
 
 export const EventFormModal: React.FC<Props> = ({ onClose, onSuccess, nextItemNumber, settings }) => {
-  const commonAreas = Array.isArray(settings?.areas) ? settings.areas : [];
-  const commonSupervisors = Array.isArray(settings?.supervisors) ? settings.supervisors : [];
-  const commonEquipments = Array.isArray(settings?.equipments) ? settings.equipments : [];
-  const commonShifts = Array.isArray(settings?.shifts) ? settings.shifts : [];
+  const commonAreas = (Array.isArray(settings?.areas) && settings.areas.length > 0)
+    ? settings.areas
+    : DEFAULT_SETTINGS.areas;
+  const commonSupervisors = (Array.isArray(settings?.supervisors) && settings.supervisors.length > 0)
+    ? settings.supervisors
+    : DEFAULT_SETTINGS.supervisors;
+  const commonEquipments = (Array.isArray(settings?.equipments) && settings.equipments.length > 0)
+    ? settings.equipments
+    : DEFAULT_SETTINGS.equipments;
+  const commonShifts = (Array.isArray(settings?.shifts) && settings.shifts.length > 0)
+    ? settings.shifts
+    : DEFAULT_SETTINGS.shifts;
 
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);

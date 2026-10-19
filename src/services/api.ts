@@ -508,18 +508,19 @@ export const api = {
       if (res.ok) {
         const data = await res.json();
         if (data && typeof data === 'object') {
-          try {
-            localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(data));
-          } catch {}
-          return {
+          const merged: AppSettings = {
             ...DEFAULT_SETTINGS,
             ...data,
-            supervisors: Array.isArray(data.supervisors) ? data.supervisors : [],
-            equipments: Array.isArray(data.equipments) ? data.equipments : [],
-            shifts: Array.isArray(data.shifts) ? data.shifts : [],
-            areas: Array.isArray(data.areas) ? data.areas : [],
-            notificationEmails: Array.isArray(data.notificationEmails) ? data.notificationEmails : DEFAULT_SETTINGS.notificationEmails,
+            supervisors: (Array.isArray(data.supervisors) && data.supervisors.length > 0) ? data.supervisors : DEFAULT_SETTINGS.supervisors,
+            equipments: (Array.isArray(data.equipments) && data.equipments.length > 0) ? data.equipments : DEFAULT_SETTINGS.equipments,
+            shifts: (Array.isArray(data.shifts) && data.shifts.length > 0) ? data.shifts : DEFAULT_SETTINGS.shifts,
+            areas: (Array.isArray(data.areas) && data.areas.length > 0) ? data.areas : DEFAULT_SETTINGS.areas,
+            notificationEmails: (Array.isArray(data.notificationEmails) && data.notificationEmails.length > 0) ? data.notificationEmails : DEFAULT_SETTINGS.notificationEmails,
           };
+          try {
+            localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(merged));
+          } catch {}
+          return merged;
         }
       }
     } catch {}
@@ -532,11 +533,11 @@ export const api = {
         return {
           ...DEFAULT_SETTINGS,
           ...parsed,
-          supervisors: Array.isArray(parsed.supervisors) ? parsed.supervisors : [],
-          equipments: Array.isArray(parsed.equipments) ? parsed.equipments : [],
-          shifts: Array.isArray(parsed.shifts) ? parsed.shifts : [],
-          areas: Array.isArray(parsed.areas) ? parsed.areas : [],
-          notificationEmails: Array.isArray(parsed.notificationEmails) ? parsed.notificationEmails : DEFAULT_SETTINGS.notificationEmails,
+          supervisors: (Array.isArray(parsed.supervisors) && parsed.supervisors.length > 0) ? parsed.supervisors : DEFAULT_SETTINGS.supervisors,
+          equipments: (Array.isArray(parsed.equipments) && parsed.equipments.length > 0) ? parsed.equipments : DEFAULT_SETTINGS.equipments,
+          shifts: (Array.isArray(parsed.shifts) && parsed.shifts.length > 0) ? parsed.shifts : DEFAULT_SETTINGS.shifts,
+          areas: (Array.isArray(parsed.areas) && parsed.areas.length > 0) ? parsed.areas : DEFAULT_SETTINGS.areas,
+          notificationEmails: (Array.isArray(parsed.notificationEmails) && parsed.notificationEmails.length > 0) ? parsed.notificationEmails : DEFAULT_SETTINGS.notificationEmails,
         };
       }
     } catch {}
@@ -552,10 +553,6 @@ export const api = {
             autoNotifyOnCreate: data.auto_notify_on_create ?? DEFAULT_SETTINGS.autoNotifyOnCreate,
             googleCalendarEnabled: data.google_calendar_enabled ?? DEFAULT_SETTINGS.googleCalendarEnabled,
             publicFormEnabled: data.public_form_enabled ?? DEFAULT_SETTINGS.publicFormEnabled,
-            supervisors: [],
-            equipments: [],
-            shifts: [],
-            areas: []
           };
         }
       } catch {}

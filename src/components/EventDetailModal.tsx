@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EventRecord, StatusType, AppSettings } from '../types';
+import { DEFAULT_SETTINGS } from '../services/api';
 import { exportSingleEventDossierPDF } from '../services/pdfService';
 import { buildGoogleCalendarWebUrl } from '../services/googleCalendarService';
 import {
@@ -55,10 +56,18 @@ export const EventDetailModal: React.FC<Props> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const supervisorsList = settings?.supervisors || [];
-  const equipmentsList = settings?.equipments || [];
-  const shiftsList = settings?.shifts || [];
-  const areasList = settings?.areas || [];
+  const supervisorsList = (settings?.supervisors && settings.supervisors.length > 0)
+    ? settings.supervisors
+    : DEFAULT_SETTINGS.supervisors;
+  const equipmentsList = (settings?.equipments && settings.equipments.length > 0)
+    ? settings.equipments
+    : DEFAULT_SETTINGS.equipments;
+  const shiftsList = (settings?.shifts && settings.shifts.length > 0)
+    ? settings.shifts
+    : DEFAULT_SETTINGS.shifts;
+  const areasList = (settings?.areas && settings.areas.length > 0)
+    ? settings.areas
+    : DEFAULT_SETTINGS.areas;
 
   const handleSave = () => {
     setIsSaving(true);
